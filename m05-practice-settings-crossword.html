@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta name="robots" content="noindex">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings across the continuum</title>
+<style>
+  :root {
+    --green: #154734; --gold: #FFB81C; --ink: #12352a; --muted: #5f7068;
+    --soft-green: #e7f1ed; --soft-gold: #fff4d8; --line: #cfddd7;
+    --danger: #b42318; --danger-soft: #ffe5e2; --success: #1f7a46; --success-soft: #e2f5e8;
+    --shadow: 0 22px 60px rgba(21, 71, 52, 0.16);
+    --cell: clamp(34px, calc((100vw - 50px) / 10), 44px);
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: "Proxima Nova", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink); line-height: 1.5;
+    background:
+      radial-gradient(circle at top left, rgba(255,184,28,0.28), transparent 30rem),
+      linear-gradient(135deg, #f7fbf8 0%, #eef7f3 100%);
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+  .page { flex: 1; display: flex; flex-direction: column; justify-content: safe center; }
+  main { width: min(100%, 46rem); margin: 0 auto; padding: clamp(0.75rem, 3vw, 1.5rem) clamp(0.5rem, 3vw, 1.25rem); }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  .card {
+    background: rgba(255,255,255,0.94); border: 2px solid rgba(21,71,52,0.1);
+    border-radius: 8px; box-shadow: var(--shadow); padding: clamp(0.7rem, 3vw, 1.4rem); margin-bottom: 1rem;
+  }
+  header.top { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: flex-start; justify-content: space-between; }
+  .kicker { margin: 0 0 0.25rem; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  h1 { margin: 0 0 0.35rem; color: var(--green); font-size: clamp(1.6rem, 5vw, 2.2rem); line-height: 1.15; }
+  .intro { margin: 0; font-size: 1.02rem; }
+  .progress-box { background: var(--green); color: #fff; border-radius: 999px; padding: 0.45rem 1rem; font-weight: 800; white-space: nowrap; }
+  .progress { margin-top: 0.8rem; }
+  .bar { height: 0.7rem; border-radius: 999px; background: var(--soft-green); overflow: hidden; border: 1px solid var(--line); }
+  .bar-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--green), var(--gold)); transition: width 240ms ease; }
+
+  .layout { display: grid; gap: 1rem; }
+  .layout > .card { margin-bottom: 0; }
+  .board-card { display: flex; flex-direction: column; align-items: center; }
+  .current-clue {
+    width: 100%; min-height: 3rem; margin: 0 0 0.7rem; padding: 0.5rem 0.8rem; border-radius: 8px;
+    background: var(--soft-gold); border: 1px solid var(--gold); font-size: 0.98rem;
+  }
+  .current-clue strong { color: var(--green); }
+  .board {
+    display: grid; grid-template-columns: repeat(var(--cols), var(--cell)); grid-auto-rows: var(--cell);
+    border: 2px solid var(--green); background: var(--green); gap: 1px; touch-action: manipulation; max-width: 100%;
+  }
+  .block { background: var(--green); }
+  .cell { position: relative; background: #fff; }
+  .cell .num { position: absolute; top: 1px; left: 3px; font-size: 10px; line-height: 1; font-weight: 800; color: var(--ink); pointer-events: none; z-index: 2; }
+  .cell input {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0; margin: 0; padding: 8px 0 0;
+    background: transparent; text-align: center; font: inherit; font-size: 18px; font-weight: 800;
+    color: var(--ink); text-transform: uppercase; caret-color: var(--green); border-radius: 0;
+  }
+  .cell input:focus { outline: 3px solid var(--gold); outline-offset: -3px; z-index: 3; }
+  .cell.in-word { background: var(--soft-gold); }
+  .cell.active { background: #ffe29a; }
+  .cell.correct { background: var(--success-soft); }
+  .cell.correct input { color: #14532d; }
+  .cell.correct::after { content: "✓"; position: absolute; right: 2px; bottom: 0; font-size: 10px; font-weight: 900; color: var(--success); pointer-events: none; }
+  .cell.incorrect { background: var(--danger-soft); }
+  .cell.incorrect::after { content: "✗"; position: absolute; right: 2px; bottom: 0; font-size: 10px; font-weight: 900; color: var(--danger); pointer-events: none; }
+  .cell.incorrect input { color: var(--danger); text-decoration: line-through; }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.8rem; justify-content: center; width: 100%; }
+  .btn { font: inherit; font-weight: 800; min-height: 3rem; padding: 0.55rem 1.3rem; border-radius: 8px; cursor: pointer; border: 2px solid var(--green); }
+  .btn-primary { background: var(--green); color: #fff; }
+  .btn-primary:hover, .btn-primary:focus-visible { background: #0e3325; }
+  .btn-secondary { background: #fff; color: var(--green); }
+  .btn-secondary:hover, .btn-secondary:focus-visible { background: var(--soft-green); }
+  .btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .feedback { margin-top: 0.8rem; width: 100%; border-radius: 8px; padding: 0.65rem 0.9rem; border: 2px solid var(--line); background: #fff; }
+  .feedback:empty { display: none; }
+  .feedback.status-success { border-color: var(--success); background: var(--success-soft); }
+  .feedback.status-error { border-color: var(--danger); background: var(--danger-soft); }
+  .feedback p { margin: 0 0 0.35rem; } .feedback p:last-child { margin-bottom: 0; }
+  .feedback ul { margin: 0.2rem 0 0.35rem; padding-left: 1.2rem; }
+
+  .clues h2 { color: var(--green); margin: 0 0 0.4rem; font-size: 1.2rem; }
+  .clue-cols { display: grid; gap: 1rem; }
+  .clues ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
+  .clue-btn {
+    display: grid; grid-template-columns: 2rem 1fr; gap: 0.3rem; width: 100%; text-align: left;
+    font: inherit; font-size: 0.95rem; color: var(--ink); background: #fff; border: 1px solid var(--line);
+    border-radius: 8px; padding: 0.45rem 0.6rem; cursor: pointer; min-height: 2.75rem; line-height: 1.35;
+  }
+  .clue-btn .n { font-weight: 900; color: var(--green); }
+  .clue-btn:hover { background: var(--soft-green); }
+  .clue-btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .clue-btn.active { background: var(--soft-gold); border-color: var(--gold); }
+  .clue-btn.solved { background: var(--success-soft); border-color: var(--success); }
+  .clue-btn.solved .t { text-decoration: line-through; text-decoration-color: rgba(31,122,70,0.6); }
+  .clue-btn .state { display: inline; margin-left: 0.35rem; font-size: 0.8rem; font-weight: 800; color: var(--success); white-space: nowrap; }
+  .clue-btn .state:empty { display: none; }
+  .note { font-size: 0.9rem; color: var(--muted); margin: 0.9rem 0 0; }
+
+  .finish-bar {
+    position: sticky; bottom: 0; z-index: 30;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    background: rgba(247, 251, 248, 0.92); backdrop-filter: blur(6px); border-top: 2px solid var(--line);
+  }
+  .finish-button {
+    display: block; width: min(100%, 22rem); margin: 0 auto; min-height: 3rem;
+    border: 2px solid var(--gold); border-radius: 8px; background: var(--gold); color: var(--green);
+    font: inherit; font-weight: 900; font-size: 1.05rem; cursor: pointer;
+    transition: background 160ms ease, color 160ms ease, opacity 160ms ease;
+  }
+  .finish-button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .finish-button:not(:disabled):hover, .finish-button:not(:disabled):focus-visible {
+    background: var(--green); border-color: var(--green); color: #ffffff; outline: none;
+  }
+  .finish-button.ready { animation: pulse 1.6s ease 2; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(255,184,28,0.35); } }
+  @media (prefers-reduced-motion: reduce) { .finish-button.ready { animation: none; } .bar-fill { transition: none; } }
+
+  @media (max-width: 520px) {
+    header.top { flex-direction: column; }
+    main { padding-left: 0.5rem; padding-right: 0.5rem; }
+    .board-card { padding: 0.7rem 5px; }
+    .current-clue, .feedback { margin-left: 0; margin-right: 0; }
+    .actions .btn { flex: 1 1 100%; }
+  }
+  @media (min-width: 700px) and (max-width: 1099px) {
+    main { width: min(100%, 62rem); padding-left: 1rem; padding-right: 1rem; }
+    .clue-cols { grid-template-columns: 1fr 1fr; }
+  }
+  @media (min-width: 1100px) and (min-height: 900px) {
+    :root { --cell: 44px; }
+    main { width: min(100%, 1320px); padding: 1rem 1.5rem; }
+    .card { padding: 1.1rem 1.4rem; }
+    header.top > div:first-child { flex: 1 1 40rem; }
+    .layout { grid-template-columns: 32rem minmax(0, 1fr); align-items: start; }
+    .clue-btn { font-size: 0.93rem; padding: 0.4rem 0.6rem; }
+    .feedback ul { column-count: 2; column-gap: 1.5rem; }
+    .feedback li { break-inside: avoid; }
+    .clue-cols { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+<main id="main">
+  <section class="card" aria-labelledby="title">
+    <header class="top">
+      <div>
+        <p class="kicker">OTD 6420 · Module 5</p>
+        <h1 id="title">Settings across the continuum</h1>
+        <p class="intro">Fill in the crossword with mental health practice settings and terms from this module. Select a clue or a square, then type; answers have no spaces. Arrow keys move between squares, and Space switches between across and down.</p>
+      </div>
+      <div class="progress-box" id="progress-box">0 / 0 squares filled</div>
+    </header>
+    <div class="progress">
+      <div class="bar" role="progressbar" aria-label="Squares filled" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressbar">
+        <div class="bar-fill" id="bar-fill"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="layout">
+    <section class="card board-card" aria-label="Crossword puzzle">
+      <p class="current-clue" id="current-clue">Select a clue or a square to begin.</p>
+      <div class="board" id="board" role="group" aria-label="Crossword grid, 17 rows by 10 columns"></div>
+      <div class="actions">
+        <button type="button" class="btn btn-primary" id="check-btn">Check Answers</button>
+        <button type="button" class="btn btn-secondary" id="clear-btn">Clear Wrong Letters</button>
+      </div>
+      <div class="feedback" id="feedback" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="card clues" aria-label="Clues">
+      <div class="clue-cols">
+        <div>
+          <h2 id="across-h">Across</h2>
+          <ol id="across-list" aria-labelledby="across-h"></ol>
+        </div>
+        <div>
+          <h2 id="down-h">Down</h2>
+          <ol id="down-list" aria-labelledby="down-h"></ol>
+        </div>
+      </div>
+      <div id="feedback-slot-wide"></div>
+      <p class="note">See Chapter 35, Practice Across the Continuum of Service Needs, and Chapters 40–43.</p>
+    </section>
+  </div>
+</main>
+</div>
+<footer class="finish-bar">
+  <button type="button" id="finish-button" class="finish-button" disabled>Finish</button>
+</footer>
+
+<script>
+  const SCORM = (() => {
+    let api = null, initialized = false, finished = false;
+    function findApi(win) {
+      let current = win, attempts = 0;
+      try {
+        while (current && !current.API && current.parent && current.parent !== current && attempts < 500) {
+          attempts += 1; current = current.parent;
+        }
+        if (current && current.API) return current.API;
+        if (win.opener && !win.opener.closed) return findApi(win.opener);
+      } catch (e) { return null; }
+      return null;
+    }
+    function call(method, ...args) {
+      if (!api || typeof api[method] !== "function") return "false";
+      try { return api[method](...args); } catch (e) { return "false"; }
+    }
+    function init() {
+      if (initialized) return true;
+      api = findApi(window);
+      if (!api) return false;
+      initialized = call("LMSInitialize", "") === "true";
+      if (initialized) {
+        const prior = call("LMSGetValue", "cmi.core.lesson_status");
+        if (prior !== "completed" && prior !== "passed") {
+          call("LMSSetValue", "cmi.core.lesson_status", "incomplete");
+        }
+        call("LMSCommit", "");
+      }
+      return initialized;
+    }
+    function setScore(raw) {
+      if (!initialized) return;
+      call("LMSSetValue", "cmi.core.score.raw", String(raw));
+      call("LMSCommit", "");
+    }
+    function finishActivity(score = 100) {
+      if (finished) return;
+      if (initialized) {
+        call("LMSSetValue", "cmi.core.lesson_status", "completed");
+        call("LMSSetValue", "cmi.core.score.raw", String(score));
+        call("LMSCommit", "");
+        call("LMSFinish", "");
+      }
+      finished = true;
+    }
+    function unloadSafety() {
+      if (finished || !initialized) return;
+      call("LMSCommit", "");
+      call("LMSFinish", "");
+      finished = true;
+    }
+    window.addEventListener("pagehide", unloadSafety);
+    window.addEventListener("beforeunload", unloadSafety);
+    return { init, setScore, finishActivity };
+  })();
+  SCORM.init();
+</script>
+<script>
+(() => {
+  const puzzle = {"rows":17,"cols":10,"words":[{"number":1,"answer":"CLUBHOUSE","row":0,"col":0,"direction":"down","clue":"Member-run community program built around a work-ordered day"},{"number":1,"answer":"CONTINUUM","row":0,"col":0,"direction":"across","clue":"The ___ of care: the full range of services from most to least restrictive"},{"number":2,"answer":"PARTIAL","row":2,"col":9,"direction":"down","clue":"___ hospitalization: an intensive day program where the client goes home at night"},{"number":3,"answer":"ACT","row":3,"col":2,"direction":"down","clue":"Assertive Community Treatment, abbreviated"},{"number":4,"answer":"VETERANS","row":3,"col":5,"direction":"down","clue":"Former service members, often served through the VA"},{"number":5,"answer":"RESTRICTIVE","row":4,"col":7,"direction":"down","clue":"Least ___ environment: the most integrated setting that still meets the client’s needs"},{"number":6,"answer":"OUTPATIENT","row":5,"col":0,"direction":"across","clue":"Clinic setting where clients live at home and attend scheduled sessions"},{"number":7,"answer":"COTA","row":8,"col":2,"direction":"down","clue":"Credential of the occupational therapy assistant who collaborates with the OTR"},{"number":8,"answer":"FORENSIC","row":9,"col":1,"direction":"across","clue":"Mental health practice within the criminal justice system, such as jails and prisons"},{"number":9,"answer":"SHELTER","row":10,"col":9,"direction":"down","clue":"Emergency housing setting where OTs may address life skills and daily routines"},{"number":10,"answer":"STATE","row":12,"col":4,"direction":"down","clue":"___ hospitals provide longer-term inpatient psychiatric care"},{"number":11,"answer":"INPATIENT","row":14,"col":1,"direction":"across","clue":"Hospital-based setting with 24-hour care for acute stabilization"}]};
+  const board = document.getElementById("board");
+  board.style.setProperty("--cols", puzzle.cols);
+
+  // ---- build cell data (shared cells merged) ----
+  const cells = {}; // "r,c" -> { r, c, answer, words: {across, down}, input, el }
+  const key = (r, c) => r + "," + c;
+  puzzle.words.forEach(w => {
+    w.id = w.direction + "-" + w.number;
+    w.cells = [];
+    for (let i = 0; i < w.answer.length; i++) {
+      const r = w.row + (w.direction === "down" ? i : 0), c = w.col + (w.direction === "across" ? i : 0);
+      const k = key(r, c);
+      if (!cells[k]) cells[k] = { r, c, answer: w.answer[i], words: {}, pos: {} };
+      if (cells[k].answer !== w.answer[i]) throw new Error("Conflict at " + k);
+      cells[k].words[w.direction] = w; cells[k].pos[w.direction] = i;
+      w.cells.push(cells[k]);
+    }
+  });
+  const byId = Object.fromEntries(puzzle.words.map(w => [w.id, w]));
+  const startNums = {};
+  puzzle.words.forEach(w => { startNums[key(w.row, w.col)] = w.number; });
+
+  // ---- clue lists ----
+  ["across", "down"].forEach(dir => {
+    const list = document.getElementById(dir + "-list");
+    puzzle.words.filter(w => w.direction === dir).forEach(w => {
+      const li = document.createElement("li");
+      const b = document.createElement("button"); b.type = "button"; b.className = "clue-btn"; b.id = "clue-" + w.id;
+      b.dataset.clue = w.id;
+      b.innerHTML = '<span class="n" aria-hidden="true">' + w.number + '</span><span><span class="sr-only">' + w.number + ' ' + dir + ', ' + w.answer.length + ' letters: </span><span class="t" id="clue-text-' + w.id + '"></span><span class="state" id="clue-state-' + w.id + '"></span></span>';
+      b.querySelector(".t").textContent = w.clue;
+      b.addEventListener("click", () => { dirPref = dir; const target = w.cells.find(c => !c.input.value && !c.input.readOnly) || w.cells.find(c => !c.input.readOnly) || w.cells[0]; target.input.focus(); });
+      li.appendChild(b); list.appendChild(li);
+      w.btn = b;
+    });
+  });
+
+  // ---- grid ----
+  for (let r = 0; r < puzzle.rows; r++) for (let c = 0; c < puzzle.cols; c++) {
+    const cd = cells[key(r, c)];
+    if (!cd) { const d = document.createElement("div"); d.className = "block"; d.setAttribute("aria-hidden", "true"); board.appendChild(d); continue; }
+    const el = document.createElement("div"); el.className = "cell";
+    if (startNums[key(r, c)]) { const n = document.createElement("span"); n.className = "num"; n.setAttribute("aria-hidden", "true"); n.textContent = startNums[key(r, c)]; el.appendChild(n); }
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.maxLength = 2; inp.autocomplete = "off"; inp.spellcheck = false;
+    inp.setAttribute("autocapitalize", "characters"); inp.setAttribute("autocorrect", "off"); inp.inputMode = "text";
+    inp.dataset.answer = cd.answer; inp.dataset.row = r; inp.dataset.col = c;
+    const parts = [], desc = [];
+    ["across", "down"].forEach(d => { const w = cd.words[d]; if (w) { parts.push(w.number + " " + d + ", letter " + (cd.pos[d] + 1) + " of " + w.answer.length); desc.push("clue-text-" + w.id); } });
+    inp.setAttribute("aria-label", parts.join("; "));
+    inp.setAttribute("aria-describedby", desc.join(" "));
+    el.appendChild(inp); board.appendChild(el);
+    cd.input = inp; cd.el = el;
+  }
+  const allCells = Object.values(cells);
+  const total = allCells.length;
+
+  // ---- navigation / highlighting ----
+  let dirPref = "across", activeWord = null, activeCell = null;
+  const clueBar = document.getElementById("current-clue");
+  function wordFor(cd) { return cd.words[dirPref] || cd.words[dirPref === "across" ? "down" : "across"]; }
+  function highlight(cd) {
+    activeCell = cd; activeWord = wordFor(cd); dirPref = activeWord.direction;
+    allCells.forEach(x => x.el.classList.remove("in-word", "active"));
+    puzzle.words.forEach(w => w.btn.classList.remove("active"));
+    activeWord.cells.forEach(x => x.el.classList.add("in-word"));
+    cd.el.classList.add("active");
+    activeWord.btn.classList.add("active");
+    clueBar.innerHTML = "<strong>" + activeWord.number + " " + activeWord.direction + ":</strong> ";
+    clueBar.appendChild(document.createTextNode(activeWord.clue + " (" + activeWord.answer.length + ")"));
+  }
+  function step(cd, dr, dc) {
+    let r = cd.r + dr, c = cd.c + dc;
+    while (r >= 0 && c >= 0 && r < puzzle.rows && c < puzzle.cols) { const n = cells[key(r, c)]; if (n) return n; r += dr; c += dc; }
+    return null;
+  }
+  function nextInWord(cd, forward) {
+    const w = activeWord; if (!w) return null;
+    let i = w.cells.indexOf(cd);
+    while (true) { i += forward ? 1 : -1; if (i < 0 || i >= w.cells.length) return null; if (!w.cells[i].input.readOnly) return w.cells[i]; }
+  }
+  allCells.forEach(cd => {
+    const inp = cd.input;
+    inp.addEventListener("focus", () => { highlight(cd); requestAnimationFrame(() => { if (document.activeElement === inp) inp.select(); }); });
+    inp.addEventListener("mousedown", () => {
+      if (document.activeElement === inp && cd.words.across && cd.words.down) { dirPref = dirPref === "across" ? "down" : "across"; highlight(cd); }
+    });
+    inp.addEventListener("input", () => {
+      if (inp.readOnly) return;
+      const v = inp.value.replace(/[^a-z]/gi, "").slice(-1).toUpperCase();
+      inp.value = v; cd.el.classList.remove("incorrect"); inp.removeAttribute("aria-invalid");
+      updateProgress();
+      if (v) { const n = nextInWord(cd, true); if (n) n.input.focus(); }
+    });
+    inp.addEventListener("keydown", e => {
+      const moves = { ArrowRight: [0, 1, "across"], ArrowLeft: [0, -1, "across"], ArrowDown: [1, 0, "down"], ArrowUp: [-1, 0, "down"] };
+      if (moves[e.key]) {
+        e.preventDefault(); const [dr, dc, d] = moves[e.key];
+        if (cd.words[d] && dirPref !== d) { dirPref = d; highlight(cd); return; }
+        const n = step(cd, dr, dc); if (n) { if (n.words[d]) dirPref = d; n.input.focus(); }
+      } else if (e.key === " ") {
+        e.preventDefault(); if (cd.words.across && cd.words.down) { dirPref = dirPref === "across" ? "down" : "across"; highlight(cd); }
+      } else if (e.key === "Backspace") {
+        if (inp.readOnly || !inp.value) {
+          e.preventDefault();
+          const p = nextInWord(cd, false);
+          if (p) { p.input.value = ""; p.el.classList.remove("incorrect"); p.input.removeAttribute("aria-invalid"); updateProgress(); p.input.focus(); }
+        }
+      }
+    });
+  });
+
+  // ---- progress / checking ----
+  const pbox = document.getElementById("progress-box"), fill = document.getElementById("bar-fill"), pbar = document.getElementById("progressbar");
+  const feedback = document.getElementById("feedback"), finishBtn = document.getElementById("finish-button");
+  function updateProgress() {
+    const filled = allCells.filter(c => c.input.value).length;
+    const pct = Math.round(filled / total * 100);
+    pbox.textContent = filled + " / " + total + " squares filled";
+    fill.style.width = pct + "%"; pbar.setAttribute("aria-valuenow", String(pct));
+  }
+  updateProgress();
+
+  const firstResult = {}; // word id -> true/false, frozen at the first check where the word was fully filled
+  let completed = false;
+  function check() {
+    if (completed) return;
+    let wrongCells = 0, emptyCells = 0;
+    allCells.forEach(cd => {
+      if (cd.input.readOnly) return;
+      if (!cd.input.value) { emptyCells++; return; }
+      if (cd.input.value !== cd.answer) { wrongCells++; cd.el.classList.add("incorrect"); cd.input.setAttribute("aria-invalid", "true"); }
+    });
+    const newlySolved = [];
+    puzzle.words.forEach(w => {
+      const full = w.cells.every(c => c.input.value);
+      const right = full && w.cells.every(c => c.input.value === c.answer);
+      if (full && !(w.id in firstResult)) firstResult[w.id] = right;
+      if (right && !w.solved) {
+        w.solved = true; newlySolved.push(w);
+        w.cells.forEach(c => { c.input.readOnly = true; c.el.classList.add("correct"); c.el.classList.remove("incorrect"); c.input.removeAttribute("aria-invalid"); });
+        w.btn.classList.add("solved"); document.getElementById("clue-state-" + w.id).textContent = "✓ Solved";
+      }
+    });
+    const solvedCount = puzzle.words.filter(w => w.solved).length;
+    if (solvedCount === puzzle.words.length) { complete(); return; }
+    const msg = [];
+    msg.push(solvedCount + " of " + puzzle.words.length + " words solved.");
+    if (wrongCells) msg.push(wrongCells + " letter" + (wrongCells === 1 ? " is" : "s are") + " wrong — marked with ✗.");
+    if (emptyCells) msg.push(emptyCells + " square" + (emptyCells === 1 ? " is" : "s are") + " still empty.");
+    if (!wrongCells && !emptyCells) msg.push("Keep going.");
+    feedback.className = "feedback " + (wrongCells ? "status-error" : "");
+    feedback.innerHTML = "<p></p>"; feedback.firstChild.textContent = msg.join(" ");
+    const firstWrong = allCells.find(c => c.el.classList.contains("incorrect"));
+    if (firstWrong) firstWrong.input.focus();
+    SCORM.setScore(firstTryScore());
+  }
+  function firstTryScore() { return Math.round(puzzle.words.filter(w => firstResult[w.id] === true).length / puzzle.words.length * 100); }
+  function complete() {
+    completed = true;
+    const missed = puzzle.words.filter(w => firstResult[w.id] === false);
+    const n = puzzle.words.length, got = n - missed.length;
+    feedback.className = "feedback status-success"; feedback.innerHTML = "";
+    const p1 = document.createElement("p"); const s = document.createElement("strong");
+    s.textContent = missed.length === 0 ? "All " + n + " words correct on your first check." : "Puzzle complete. On your first check you had " + got + " of " + n + " words right.";
+    p1.appendChild(s); feedback.appendChild(p1);
+    if (missed.length) {
+      const p = document.createElement("p"); p.textContent = "These took another pass — worth revisiting:"; feedback.appendChild(p);
+      const ul = document.createElement("ul");
+      missed.forEach(w => { const li = document.createElement("li"); li.textContent = w.answer + " (" + w.number + " " + w.direction + ")"; ul.appendChild(li); });
+      feedback.appendChild(ul);
+    }
+    const p2 = document.createElement("p"); p2.textContent = "Activity complete — the Finish button is now available."; feedback.appendChild(p2);
+    finishBtn.dataset.score = String(firstTryScore());
+    SCORM.setScore(Number(finishBtn.dataset.score));
+    finishBtn.disabled = false; finishBtn.classList.add("ready");
+  }
+  // In the wide LMS frame the right column has room for feedback; on phones keep it under the board.
+  const wideMq = window.matchMedia("(min-width: 1100px) and (min-height: 900px)");
+  const boardCard = document.querySelector(".board-card");
+  function placeFeedback() { (wideMq.matches ? document.getElementById("feedback-slot-wide") : boardCard).appendChild(feedback); }
+  placeFeedback();
+  if (wideMq.addEventListener) wideMq.addEventListener("change", placeFeedback);
+  document.getElementById("check-btn").addEventListener("click", check);
+  document.getElementById("clear-btn").addEventListener("click", () => {
+    let n = 0;
+    allCells.forEach(c => { if (c.el.classList.contains("incorrect")) { c.input.value = ""; c.el.classList.remove("incorrect"); c.input.removeAttribute("aria-invalid"); n++; } });
+    updateProgress();
+    feedback.className = "feedback"; feedback.innerHTML = "<p></p>";
+    feedback.firstChild.textContent = n ? "Cleared " + n + " wrong letter" + (n === 1 ? "" : "s") + "." : "No wrong letters to clear — use Check Answers to mark them first.";
+  });
+  finishBtn.addEventListener("click", () => {
+    SCORM.finishActivity(Number(finishBtn.dataset.score || 100));
+    finishBtn.textContent = "✓ Completed — you may close this window";
+    finishBtn.disabled = true; finishBtn.classList.remove("ready");
+  });
+})();
+</script>
+</body>
+</html>

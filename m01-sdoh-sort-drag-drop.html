@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta name="robots" content="noindex">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Which determinant is at work? — OTD 6420 Module 1</title>
+<style>
+  :root {
+    --green: #154734; --gold: #FFB81C; --ink: #12352a; --muted: #5f7068;
+    --soft-green: #e7f1ed; --soft-gold: #fff4d8; --line: #cfddd7;
+    --danger: #b42318; --danger-soft: #ffe5e2;
+    --success: #1f7a46; --success-soft: #e2f5e8;
+    --shadow: 0 22px 60px rgba(21, 71, 52, 0.16);
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: "Proxima Nova", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at top left, rgba(255,184,28,0.28), transparent 30rem),
+      linear-gradient(135deg, #f7fbf8 0%, #eef7f3 100%);
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+  .page { flex: 1; display: flex; flex-direction: column; justify-content: safe center; }
+  main { width: min(100%, 46rem); margin: 0 auto; padding: clamp(0.9rem, 3vw, 1.5rem) clamp(0.75rem, 3vw, 1.25rem); }
+  header.top { margin-bottom: 1rem; }
+  .kicker { margin: 0 0 0.3rem; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green); }
+  h1 { margin: 0 0 0.45rem; font-size: clamp(1.6rem, 5vw, 2.2rem); line-height: 1.1; color: var(--green); }
+  .instructions { margin: 0; font-size: 1.05rem; line-height: 1.5; }
+  .hint { margin: 0.35rem 0 0; font-size: 0.92rem; color: var(--muted); }
+  .card {
+    background: rgba(255,255,255,0.94); border: 2px solid rgba(21,71,52,0.1);
+    border-radius: 8px; box-shadow: var(--shadow); padding: clamp(0.8rem, 2.5vw, 1.1rem);
+  }
+  .layout { display: grid; gap: 1rem; }
+  .zone-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; }
+  .zone-head h2 { margin: 0; font-size: 1.05rem; color: var(--green); }
+  .count { font-size: 0.85rem; font-weight: 700; color: var(--muted); white-space: nowrap; }
+  .tray-list, .bin-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; min-height: 3rem; }
+  .tray-empty { color: var(--muted); font-size: 0.95rem; margin: 0; }
+  .item {
+    width: 100%; text-align: left; font: inherit; font-size: 0.97rem; line-height: 1.35; color: var(--ink);
+    background: var(--soft-gold); border: 2px solid #e8c77a; border-radius: 8px;
+    padding: 0.6rem 0.75rem; min-height: 3rem; cursor: grab;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+    display: flex; gap: 0.5rem; align-items: flex-start;
+  }
+  .item:hover { border-color: var(--green); }
+  .item:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+  .item.is-selected { background: var(--gold); border-color: var(--green); box-shadow: 0 0 0 3px rgba(21,71,52,0.25); }
+  .item.correct { background: var(--success-soft); border-color: var(--success); cursor: default; pointer-events: none; }
+  .item .mark { flex: none; font-weight: 900; width: 1.1rem; }
+  .item.correct .mark::before { content: "\2713"; color: var(--success); }
+  .item.returned { border-color: var(--danger); background: var(--danger-soft); }
+  .item.returned .mark::before { content: "\21A9"; color: var(--danger); }
+  .item.shake { animation: shake 0.45s ease; }
+  @keyframes shake { 20%,60% { transform: translateX(-6px); } 40%,80% { transform: translateX(6px); } }
+  .item.dragging { position: fixed; z-index: 100; pointer-events: none; box-shadow: var(--shadow); opacity: 0.95; cursor: grabbing; }
+  .placeholder { border: 2px dashed var(--line); border-radius: 8px; }
+  .bins { display: grid; gap: 0.8rem; }
+  .bin { border: 2px solid var(--line); border-radius: 8px; background: #fff; padding: 0.55rem; transition: border-color 120ms, background 120ms; }
+  .bin.is-over, .tray.is-over { border-color: var(--gold); background: var(--soft-gold); }
+  .bin-target {
+    width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;
+    font: inherit; font-weight: 800; font-size: 1rem; text-align: left; color: #fff; background: var(--green);
+    border: 2px solid var(--green); border-radius: 6px; min-height: 3rem; padding: 0.4rem 0.7rem; margin-bottom: 0.5rem; cursor: pointer;
+  }
+  .bin-target:hover, .bin-target:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .bin-target .count { color: #e7f1ed; font-weight: 700; }
+  .bin-empty { margin: 0; padding: 0.4rem 0.2rem; font-size: 0.9rem; color: var(--muted); }
+  .tray-return {
+    font: inherit; font-size: 0.85rem; font-weight: 700; color: var(--green); background: #fff;
+    border: 2px solid var(--green); border-radius: 6px; min-height: 2.75rem; padding: 0 0.7rem; cursor: pointer;
+  }
+  .tray-return:hover, .tray-return:focus-visible { background: var(--soft-green); outline: 3px solid var(--gold); outline-offset: 2px; }
+  .controls { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; margin-top: 0.9rem; }
+  .btn {
+    min-height: 3rem; padding: 0 1.3rem; border-radius: 8px; font: inherit; font-weight: 800; font-size: 1rem;
+    border: 2px solid var(--green); background: var(--green); color: #fff; cursor: pointer;
+  }
+  .btn:hover, .btn:focus-visible { background: #0d2e21; outline: 3px solid var(--gold); outline-offset: 2px; }
+  .btn.secondary { background: #fff; color: var(--green); }
+  .btn.secondary:hover, .btn.secondary:focus-visible { background: var(--soft-green); }
+  .btn[hidden] { display: none; }
+  .scorebox { margin-left: auto; min-width: 12rem; }
+  .score-text { font-weight: 800; font-size: 0.95rem; color: var(--green); margin: 0 0 0.3rem; }
+  .meter { height: 0.6rem; border-radius: 99px; background: var(--soft-green); overflow: hidden; border: 1px solid var(--line); }
+  .meter span { display: block; height: 100%; width: 0; background: var(--gold); transition: width 300ms ease; }
+  .feedback { margin-top: 0.8rem; border-left: 6px solid var(--line); background: #fff; padding: 0.7rem 0.9rem; border-radius: 6px; line-height: 1.45; }
+  .feedback h3 { margin: 0 0 0.2rem; font-size: 1rem; color: var(--green); }
+  .feedback p { margin: 0.2rem 0 0; }
+  .feedback ul { margin: 0.3rem 0 0; padding-left: 1.2rem; }
+  .feedback.try { border-left-color: var(--danger); background: var(--danger-soft); }
+  .feedback.try h3 { color: var(--danger); }
+  .feedback.done { border-left-color: var(--success); background: var(--success-soft); }
+  .source { margin: 0.8rem 0 0; font-size: 0.9rem; color: var(--muted); }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  .finish-bar {
+    position: sticky; bottom: 0; z-index: 30;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    background: rgba(247, 251, 248, 0.92); backdrop-filter: blur(6px); border-top: 2px solid var(--line);
+  }
+  .finish-button {
+    display: block; width: min(100%, 22rem); margin: 0 auto; min-height: 3rem;
+    border: 2px solid var(--gold); border-radius: 8px; background: var(--gold); color: var(--green);
+    font-weight: 900; font-size: 1.05rem; cursor: pointer; font-family: inherit;
+    transition: background 160ms ease, color 160ms ease, opacity 160ms ease;
+  }
+  .finish-button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .finish-button:not(:disabled):hover, .finish-button:not(:disabled):focus-visible {
+    background: var(--green); border-color: var(--green); color: #ffffff; outline: none;
+  }
+  .finish-button.ready { animation: pulse 1.6s ease 3; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(255,184,28,0.35); } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  @media (max-width: 520px) { .scorebox { margin-left: 0; width: 100%; } }
+  @media (min-width: 700px) and (max-width: 1099px) {
+    main { width: min(100%, 62rem); }
+    .bins { grid-template-columns: 1fr 1fr; }
+  }
+  @media (min-width: 1100px) and (min-height: 900px) {
+    main { width: min(100%, 1320px); padding: 1.1rem 1.5rem; }
+    .layout { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.6fr); align-items: start; }
+    .bins { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+<main id="main">
+  <header class="top">
+    <p class="kicker">OTD 6420 · Module 1</p>
+    <h1>Which determinant is at work?</h1>
+    <p class="instructions">Each snapshot describes a barrier a client is facing. Sort it into the Healthy People 2030 social determinant of health domain it best fits, then select Check.</p>
+    <p class="hint">Drag a snapshot onto a domain, or select a snapshot and then select a domain heading (works with a keyboard, too).</p>
+  </header>
+
+  <div class="layout">
+    <section class="card tray" id="tray" aria-labelledby="tray-title">
+      <div class="zone-head">
+        <h2 id="tray-title">Client snapshots</h2>
+        <button type="button" class="tray-return" id="tray-return">Return selected here</button>
+      </div>
+      <ul class="tray-list" id="tray-list"></ul>
+      <p class="tray-empty" id="tray-empty" hidden>All snapshots are sorted. Select Check when you are ready.</p>
+    </section>
+
+    <section class="card" aria-labelledby="bins-title">
+      <h2 class="sr-only" id="bins-title">Social determinant of health domains</h2>
+      <div class="bins" id="bins"></div>
+      <div class="controls">
+        <button type="button" class="btn" id="check-btn">Check</button>
+        <button type="button" class="btn secondary" id="retry-btn" hidden>Sort again</button>
+        <div class="scorebox">
+          <p class="score-text" id="score-text">0 of 10 correct · 0 placed</p>
+          <div class="meter" aria-hidden="true"><span id="meter-fill"></span></div>
+        </div>
+      </div>
+      <section class="feedback" id="feedback" aria-live="polite" aria-atomic="true">
+        <h3>Ready</h3>
+        <p>Place every snapshot, then choose Check. Correct placements lock in; misplaced ones return to the list.</p>
+      </section>
+      <p class="source">Domains from Healthy People 2030. See Chapter 28, Social Determinants and Mental Health.</p>
+    </section>
+  </div>
+  <p class="sr-only" id="status" aria-live="assertive"></p>
+</main>
+</div>
+<footer class="finish-bar">
+  <button type="button" id="finish-button" class="finish-button" disabled>Finish</button>
+</footer>
+
+<script>
+  const SCORM = (() => {
+    let api = null, initialized = false, finished = false;
+    function findApi(win) {
+      let current = win, attempts = 0;
+      try {
+        while (current && !current.API && current.parent && current.parent !== current && attempts < 500) {
+          attempts += 1; current = current.parent;
+        }
+        if (current && current.API) return current.API;
+        if (win.opener && !win.opener.closed) return findApi(win.opener);
+      } catch (e) { return null; }
+      return null;
+    }
+    function call(method, ...args) {
+      if (!api || typeof api[method] !== "function") return "false";
+      try { return api[method](...args); } catch (e) { return "false"; }
+    }
+    function init() {
+      if (initialized) return true;
+      api = findApi(window);
+      if (!api) return false;
+      initialized = call("LMSInitialize", "") === "true";
+      if (initialized) {
+        const prior = call("LMSGetValue", "cmi.core.lesson_status");
+        if (prior !== "completed" && prior !== "passed") {
+          call("LMSSetValue", "cmi.core.lesson_status", "incomplete");
+        }
+        call("LMSCommit", "");
+      }
+      return initialized;
+    }
+    function setScore(raw) {
+      if (!initialized) return;
+      call("LMSSetValue", "cmi.core.score.raw", String(raw));
+      call("LMSCommit", "");
+    }
+    function finishActivity(score = 100) {
+      if (finished) return;
+      if (initialized) {
+        call("LMSSetValue", "cmi.core.lesson_status", "completed");
+        call("LMSSetValue", "cmi.core.score.raw", String(score));
+        call("LMSCommit", "");
+        call("LMSFinish", "");
+      }
+      finished = true;
+    }
+    function unloadSafety() {
+      if (finished || !initialized) return;
+      call("LMSCommit", "");
+      call("LMSFinish", "");
+      finished = true;
+    }
+    window.addEventListener("pagehide", unloadSafety);
+    window.addEventListener("beforeunload", unloadSafety);
+    return { init, setScore, finishActivity };
+  })();
+  SCORM.init();
+</script>
+
+<script>
+(() => {
+  const CATEGORIES = [
+    { id: "econ", label: "Economic Stability" },
+    { id: "access", label: "Health Care Access and Quality" },
+    { id: "neigh", label: "Neighborhood and Built Environment" },
+    { id: "social", label: "Social and Community Context" }
+  ];
+  const ITEMS = [
+    { id: "dana", answers: ["econ"], text: "Dana works two part-time jobs with no paid sick leave and skips therapy when she can't afford to lose a shift." },
+    { id: "luis", answers: ["econ"], text: "After losing his job, Luis has to choose between paying rent and refilling his antipsychotic prescription." },
+    { id: "psych", answers: ["access"], text: "The nearest psychiatrist who accepts Medicaid has a four-month waitlist." },
+    { id: "nguyen", answers: ["access"], text: "Mr. Nguyen's plan covers only 10 therapy sessions a year, and no in-network therapist speaks Vietnamese." },
+    { id: "tasha", answers: ["access"], text: "Tasha was discharged from the emergency department without a follow-up appointment." },
+    { id: "bus", answers: ["neigh"], text: "The only bus to the community mental health center runs twice a day." },
+    { id: "keisha", answers: ["neigh"], text: "Keisha's neighborhood has no grocery store within two miles and no sidewalks, so she rarely leaves home." },
+    { id: "jamal", answers: ["neigh"], text: "Jamal's apartment has mold and no working heat, and he sleeps poorly through the winter." },
+    { id: "sam", answers: ["social"], text: "Since his diagnosis, Sam's friends from church have stopped calling, and he spends most days alone." },
+    { id: "maria", answers: ["social"], text: "Maria avoids telling her family about her anxiety because in her community mental illness is seen as a personal weakness." }
+  ];
+  const catLabel = id => CATEGORIES.find(c => c.id === id).label;
+  const short = t => { const w = t.split(" "); return w.slice(0, 7).join(" ") + (w.length > 7 ? "…" : ""); };
+
+  const trayEl = document.getElementById("tray");
+  const trayList = document.getElementById("tray-list");
+  const trayEmpty = document.getElementById("tray-empty");
+  const binsEl = document.getElementById("bins");
+  const checkBtn = document.getElementById("check-btn");
+  const retryBtn = document.getElementById("retry-btn");
+  const scoreText = document.getElementById("score-text");
+  const meterFill = document.getElementById("meter-fill");
+  const feedback = document.getElementById("feedback");
+  const statusEl = document.getElementById("status");
+  const finishBtn = document.getElementById("finish-button");
+
+  let state = {};         // itemId -> { loc: "tray"|catId, locked, el }
+  let selected = null;
+  let firstTry = {};      // itemId -> true/false, frozen at first check where the item was placed
+  let frozenScore = null;
+  let completed = false;
+  const bins = {};
+
+  function shuffle(a) {
+    const arr = a.slice();
+    for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+    return arr;
+  }
+
+  function buildBins() {
+    binsEl.textContent = "";
+    CATEGORIES.forEach(c => {
+      const bin = document.createElement("div");
+      bin.className = "bin"; bin.dataset.cat = c.id;
+      const btn = document.createElement("button");
+      btn.type = "button"; btn.className = "bin-target";
+      const name = document.createElement("span"); name.textContent = c.label;
+      const cnt = document.createElement("span"); cnt.className = "count";
+      btn.append(name, cnt);
+      const list = document.createElement("ul"); list.className = "bin-list";
+      list.setAttribute("aria-label", c.label + " snapshots");
+      const empty = document.createElement("p"); empty.className = "bin-empty"; empty.textContent = "Drop snapshots here";
+      bin.append(btn, list, empty);
+      bin.addEventListener("click", e => {
+        if (e.target.closest(".item")) return;
+        if (selected) placeSelected(c.id);
+        else if (e.target.closest(".bin-target")) announce("Select a snapshot first, then choose " + c.label + ".");
+      });
+      bins[c.id] = { el: bin, btn, list, empty, cnt };
+      binsEl.appendChild(bin);
+    });
+  }
+
+  function build() {
+    state = {}; selected = null; completed = false;
+    trayList.textContent = "";
+    Object.values(bins).forEach(b => b.list.textContent = "");
+    shuffle(ITEMS).forEach(it => {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "item"; b.dataset.id = it.id;
+      const mark = document.createElement("span"); mark.className = "mark"; mark.setAttribute("aria-hidden", "true");
+      const txt = document.createElement("span"); txt.className = "txt"; txt.textContent = it.text;
+      const st = document.createElement("span"); st.className = "sr-only st";
+      b.append(mark, txt, st);
+      li.appendChild(b);
+      trayList.appendChild(li);
+      state[it.id] = { loc: "tray", locked: false, el: b, li };
+      attachDrag(b, it.id);
+      b.addEventListener("click", e => {
+        if (b.dataset.suppress) { delete b.dataset.suppress; return; }
+        e.stopPropagation();
+        select(it.id);
+      });
+    });
+    refresh();
+  }
+
+  function select(id) {
+    if (completed || state[id].locked) return;
+    if (selected === id) { selected = null; announce("Selection cleared."); }
+    else { selected = id; announce("Selected: " + short(ITEMS.find(i => i.id === id).text) + " Now choose a domain."); }
+    refresh();
+  }
+
+  function moveTo(id, loc) {
+    const s = state[id];
+    if (s.locked || completed) return;
+    s.loc = loc;
+    s.el.classList.remove("returned", "shake");
+    const list = loc === "tray" ? trayList : bins[loc].list;
+    list.appendChild(s.li);
+  }
+
+  function placeSelected(loc) {
+    if (!selected) return;
+    const id = selected;
+    moveTo(id, loc);
+    selected = null;
+    refresh();
+    announce("Placed in " + (loc === "tray" ? "the snapshot list" : catLabel(loc)) + ".");
+    state[id].el.focus();
+  }
+
+  function refresh() {
+    let placed = 0, correct = 0;
+    ITEMS.forEach(it => {
+      const s = state[it.id];
+      if (s.loc !== "tray") placed++;
+      if (s.locked) correct++;
+      s.el.classList.toggle("is-selected", selected === it.id);
+      s.el.setAttribute("aria-pressed", selected === it.id ? "true" : "false");
+      if (s.locked) s.el.setAttribute("aria-disabled", "true"); else s.el.removeAttribute("aria-disabled");
+      const where = s.loc === "tray" ? "not placed" : "in " + catLabel(s.loc);
+      s.el.querySelector(".st").textContent = s.locked ? " (correct, locked in " + catLabel(s.loc) + ")" :
+        s.el.classList.contains("returned") ? " (returned: try a different domain)" : " (" + where + ")";
+    });
+    CATEGORIES.forEach(c => {
+      const n = ITEMS.filter(it => state[it.id].loc === c.id).length;
+      bins[c.id].cnt.textContent = n + (n === 1 ? " item" : " items");
+      bins[c.id].empty.hidden = n > 0;
+      bins[c.id].btn.setAttribute("aria-label", "Place selected snapshot in " + c.label + ", " + n + (n === 1 ? " item" : " items"));
+    });
+    const inTray = ITEMS.length - placed;
+    trayEmpty.hidden = inTray > 0;
+    scoreText.textContent = correct + " of " + ITEMS.length + " correct · " + placed + " placed";
+    meterFill.style.width = (100 * correct / ITEMS.length) + "%";
+  }
+
+  function announce(msg) { statusEl.textContent = ""; setTimeout(() => { statusEl.textContent = msg; }, 30); }
+
+  function setFeedback(kind, title, nodes) {
+    feedback.className = "feedback" + (kind ? " " + kind : "");
+    feedback.textContent = "";
+    const h = document.createElement("h3"); h.textContent = title; feedback.appendChild(h);
+    nodes.forEach(n => feedback.appendChild(n));
+  }
+  const para = t => { const p = document.createElement("p"); p.textContent = t; return p; };
+
+  function check() {
+    if (completed) return;
+    selected = null;
+    let wrong = 0, unplaced = 0;
+    ITEMS.forEach(it => {
+      const s = state[it.id];
+      if (s.locked) return;
+      if (s.loc === "tray") { unplaced++; return; }
+      const ok = it.answers.includes(s.loc);
+      if (!(it.id in firstTry)) firstTry[it.id] = ok;
+      if (ok) { s.locked = true; s.el.classList.add("correct"); }
+      else {
+        wrong++;
+        s.loc = "tray"; trayList.appendChild(s.li);
+        s.el.classList.add("returned", "shake");
+        setTimeout(() => s.el.classList.remove("shake"), 500);
+      }
+    });
+    refresh();
+    const correct = ITEMS.filter(it => state[it.id].locked).length;
+    if (correct === ITEMS.length) { complete(); return; }
+    const msgs = [para(correct + " of " + ITEMS.length + " are sorted correctly and locked in.")];
+    if (wrong) msgs.push(para(wrong + (wrong === 1 ? " snapshot was" : " snapshots were") + " misplaced and returned to the list, marked with a return arrow. Ask: what is the root barrier here — money, services, place, or people?"));
+    if (unplaced) msgs.push(para(unplaced + (unplaced === 1 ? " snapshot has" : " snapshots have") + " not been placed yet."));
+    setFeedback("try", "Not quite yet", msgs);
+  }
+
+  function complete() {
+    completed = true;
+    checkBtn.hidden = true;
+    retryBtn.hidden = false;
+    const first = ITEMS.filter(it => firstTry[it.id]);
+    const later = ITEMS.filter(it => !firstTry[it.id]);
+    if (frozenScore === null) {
+      frozenScore = Math.round(100 * first.length / ITEMS.length);
+      SCORM.setScore(frozenScore);
+    }
+    const msgs = [];
+    let head;
+    if (!later.length) {
+      head = "All 10 sorted correctly on the first try";
+      msgs.push(para("Every snapshot landed in the right domain the first time you checked it."));
+    } else {
+      head = "All 10 sorted — " + first.length + " of 10 on the first try";
+      msgs.push(para("These took another pass and are worth revisiting:"));
+      const ul = document.createElement("ul");
+      later.forEach(it => { const li = document.createElement("li"); li.textContent = short(it.text) + " → " + it.answers.map(catLabel).join(" / "); ul.appendChild(li); });
+      msgs.push(ul);
+    }
+    setFeedback("done", head, msgs);
+    if (!finishBtn.dataset.done) { finishBtn.disabled = false; finishBtn.classList.add("ready"); }
+    announce("Activity complete — the Finish button is now available.");
+  }
+
+  function retry() {
+    ITEMS.forEach(it => state[it.id].el.classList.remove("correct", "returned"));
+    build();
+    checkBtn.hidden = false;
+    retryBtn.hidden = true;
+    setFeedback("", "Practice round", [para("Your first-try result is saved. Sort the snapshots again for practice.")]);
+    checkBtn.focus();
+  }
+
+  /* ---- Pointer-event dragging (mouse, pen, touch) ---- */
+  function attachDrag(el, id) {
+    let start = null, dragging = false, ghostOffset = null, placeholder = null, over = null;
+    el.addEventListener("pointerdown", e => {
+      if (completed || state[id].locked || (e.pointerType === "mouse" && e.button !== 0)) return;
+      start = { x: e.clientX, y: e.clientY, pid: e.pointerId };
+      dragging = false;
+    });
+    el.addEventListener("pointermove", e => {
+      if (!start || e.pointerId !== start.pid) return;
+      if (!dragging) {
+        if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 8) return;
+        dragging = true;
+        try { el.setPointerCapture(e.pointerId); } catch (err) {}
+        const r = el.getBoundingClientRect();
+        ghostOffset = { x: start.x - r.left, y: start.y - r.top };
+        placeholder = document.createElement("div");
+        placeholder.className = "placeholder";
+        placeholder.style.height = r.height + "px";
+        el.parentNode.insertBefore(placeholder, el);
+        el.style.width = r.width + "px";
+        el.classList.add("dragging");
+      }
+      el.style.left = (e.clientX - ghostOffset.x) + "px";
+      el.style.top = (e.clientY - ghostOffset.y) + "px";
+      const zone = zoneAt(e.clientX, e.clientY);
+      if (zone !== over) {
+        if (over) over.classList.remove("is-over");
+        over = zone; if (over) over.classList.add("is-over");
+      }
+      e.preventDefault();
+    });
+    const end = e => {
+      if (!start) return;
+      const wasDragging = dragging;
+      start = null; dragging = false;
+      if (!wasDragging) return;
+      el.dataset.suppress = "1";
+      setTimeout(() => { delete el.dataset.suppress; }, 50);
+      el.classList.remove("dragging");
+      el.style.left = el.style.top = el.style.width = "";
+      if (placeholder) placeholder.remove();
+      if (over) over.classList.remove("is-over");
+      const zone = e.type === "pointerup" ? zoneAt(e.clientX, e.clientY) : null;
+      over = null;
+      if (zone) {
+        const loc = zone.dataset.cat || "tray";
+        moveTo(id, loc);
+        if (selected === id) selected = null;
+        refresh();
+        announce("Placed in " + (loc === "tray" ? "the snapshot list" : catLabel(loc)) + ".");
+      }
+    };
+    el.addEventListener("pointerup", end);
+    el.addEventListener("pointercancel", end);
+  }
+
+  function zoneAt(x, y) {
+    const hit = document.elementFromPoint(x, y);
+    if (!hit) return null;
+    return hit.closest(".bin") || hit.closest(".tray");
+  }
+
+  trayEl.addEventListener("click", e => {
+    if (e.target.closest(".item")) return;
+    if (selected && state[selected].loc !== "tray") placeSelected("tray");
+  });
+  document.getElementById("tray-return").addEventListener("click", e => {
+    e.stopPropagation();
+    if (!selected) { announce("Select a placed snapshot first to return it to the list."); return; }
+    placeSelected("tray");
+  });
+  checkBtn.addEventListener("click", check);
+  retryBtn.addEventListener("click", retry);
+  finishBtn.addEventListener("click", () => {
+    SCORM.finishActivity(frozenScore === null ? 100 : frozenScore);
+    finishBtn.textContent = "✓ Completed — you may close this window";
+    finishBtn.disabled = true;
+    finishBtn.dataset.done = "1";
+    finishBtn.classList.remove("ready");
+  });
+
+  buildBins();
+  build();
+})();
+</script>
+</body>
+</html>

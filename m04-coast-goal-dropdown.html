@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta name="robots" content="noindex">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Build a COAST goal</title>
+<style>
+  :root {
+    --green: #154734; --gold: #FFB81C; --ink: #12352a; --muted: #5f7068;
+    --soft-green: #e7f1ed; --soft-gold: #fff4d8; --line: #cfddd7;
+    --danger: #b42318; --danger-soft: #ffe5e2; --success: #1f7a46; --success-soft: #e2f5e8;
+    --shadow: 0 22px 60px rgba(21, 71, 52, 0.16);
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: "Proxima Nova", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    line-height: 1.5;
+    background:
+      radial-gradient(circle at top left, rgba(255,184,28,0.28), transparent 30rem),
+      linear-gradient(135deg, #f7fbf8 0%, #eef7f3 100%);
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+  }
+  .page { flex: 1; display: flex; flex-direction: column; justify-content: safe center; }
+  main { width: min(100%, 46rem); margin: 0 auto; padding: clamp(0.9rem, 3vw, 1.6rem) clamp(0.75rem, 3vw, 1.25rem); }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  .card {
+    background: rgba(255,255,255,0.94); border: 2px solid rgba(21,71,52,0.1);
+    border-radius: 8px; box-shadow: var(--shadow); padding: clamp(1rem, 3vw, 1.5rem);
+    margin-bottom: 1rem;
+  }
+  header.top { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; align-items: flex-start; justify-content: space-between; }
+  .kicker { margin: 0 0 0.25rem; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  h1 { margin: 0 0 0.4rem; color: var(--green); font-size: clamp(1.6rem, 5vw, 2.2rem); line-height: 1.15; }
+  .intro { margin: 0; font-size: 1.02rem; }
+  .intro strong { color: var(--green); }
+  .score-pill {
+    background: var(--green); color: #fff; border-radius: 999px; padding: 0.45rem 1rem;
+    font-weight: 800; white-space: nowrap;
+  }
+  .progress { margin-top: 0.9rem; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--muted); font-weight: 700; margin-bottom: 0.3rem; }
+  .bar { height: 0.7rem; border-radius: 999px; background: var(--soft-green); overflow: hidden; border: 1px solid var(--line); }
+  .bar-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--green), var(--gold)); transition: width 240ms ease; }
+
+  h2 { color: var(--green); margin: 0 0 0.75rem; font-size: clamp(1.15rem, 3.5vw, 1.35rem); }
+  h2 .part { display: inline-block; background: var(--soft-gold); border: 1px solid var(--gold); color: var(--green); border-radius: 6px; padding: 0 0.45rem; margin-right: 0.4rem; font-size: 0.85em; }
+  h3 { margin: 0 0 0.5rem; font-size: 1.05rem; color: var(--green); }
+  .goals { display: grid; gap: 1rem; }
+  .goal { background: var(--soft-green); border: 1px solid var(--line); border-radius: 8px; padding: 0.9rem; }
+  .segments { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.55rem; }
+  .segment { display: grid; grid-template-columns: 1fr; gap: 0.35rem; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 0.55rem 0.7rem; }
+  .segment q { font-weight: 700; quotes: "\201C" "\201D"; }
+  .sentence { font-size: 1.1rem; line-height: 2.6; margin: 0; }
+  .sentence .blank { display: inline-block; vertical-align: middle; max-width: 100%; }
+
+  select.answer-select {
+    font: inherit; font-size: 1rem; min-height: 3.1rem; max-width: 100%;
+    padding: 0.4rem 2.2rem 0.4rem 0.7rem; border: 2px dashed var(--green); border-radius: 8px;
+    background: #fff; color: var(--ink); cursor: pointer; line-height: 1.3;
+    -webkit-appearance: none; appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--green) 50%), linear-gradient(135deg, var(--green) 50%, transparent 50%);
+    background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+  }
+  .segment select.answer-select { width: 100%; }
+  select.answer-select.filled { border-style: solid; }
+  select.answer-select:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  select.answer-select.correct { border: 2px solid var(--success); background-color: var(--success-soft); color: #14532d; cursor: default; opacity: 1; }
+  select.answer-select.incorrect { border: 2px solid var(--danger); background-color: var(--danger-soft); }
+  .mark { font-weight: 900; margin-left: 0.2rem; }
+  .ctl { display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
+  .ctl select.answer-select { flex: 1 1 auto; min-width: 0; }
+  .mark { display: inline-block; width: 1.2rem; text-align: center; font-size: 1.15rem; }
+  .mark.ok { color: var(--success); }
+  .mark.no { color: var(--danger); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--line); }
+  .btn { font: inherit; font-weight: 800; min-height: 3rem; padding: 0.55rem 1.3rem; border-radius: 8px; cursor: pointer; border: 2px solid var(--green); }
+  .btn-primary { background: var(--green); color: #fff; }
+  .btn-primary:hover, .btn-primary:focus-visible { background: #0e3325; }
+  .btn-secondary { background: #fff; color: var(--green); }
+  .btn-secondary:hover, .btn-secondary:focus-visible { background: var(--soft-green); }
+  .btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .feedback { margin-top: 0.9rem; border-radius: 8px; padding: 0.7rem 0.9rem; border: 2px solid var(--line); background: #fff; }
+  .feedback:empty { display: none; }
+  .feedback.status-success { border-color: var(--success); background: var(--success-soft); }
+  .feedback.status-error { border-color: var(--danger); background: var(--danger-soft); }
+  .feedback p { margin: 0 0 0.35rem; }
+  .feedback p:last-child { margin-bottom: 0; }
+  .feedback ul { margin: 0.25rem 0 0; padding-left: 1.2rem; }
+  .note { font-size: 0.9rem; color: var(--muted); margin: 0.5rem 0 0; text-align: center; }
+
+  .finish-bar {
+    position: sticky; bottom: 0; z-index: 30;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    background: rgba(247, 251, 248, 0.92); backdrop-filter: blur(6px); border-top: 2px solid var(--line);
+  }
+  .finish-button {
+    display: block; width: min(100%, 22rem); margin: 0 auto; min-height: 3rem;
+    border: 2px solid var(--gold); border-radius: 8px; background: var(--gold); color: var(--green);
+    font: inherit; font-weight: 900; font-size: 1.05rem; cursor: pointer;
+    transition: background 160ms ease, color 160ms ease, opacity 160ms ease;
+  }
+  .finish-button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .finish-button:not(:disabled):hover, .finish-button:not(:disabled):focus-visible {
+    background: var(--green); border-color: var(--green); color: #ffffff; outline: none;
+  }
+  .finish-button.ready { animation: pulse 1.6s ease 2; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(255,184,28,0.35); } }
+  @media (prefers-reduced-motion: reduce) { .finish-button.ready { animation: none; } .bar-fill { transition: none; } }
+
+  @media (max-width: 520px) {
+    header.top { flex-direction: column; }
+    .actions .btn { flex: 1 1 100%; }
+    .sentence { line-height: 2.4; }
+    .sentence .blank { display: flex; align-items: center; width: 100%; }
+    .sentence select.answer-select { flex: 1 1 auto; min-width: 0; }
+  }
+  @media (min-width: 700px) and (max-width: 1099px) {
+    main { width: min(100%, 62rem); padding-left: 1rem; padding-right: 1rem; }
+    .goals { grid-template-columns: 1fr 1fr; }
+  }
+  @media (min-width: 1100px) and (min-height: 900px) {
+    main { width: min(100%, 1320px); padding: 0.75rem 1.5rem; }
+    .goals { grid-template-columns: 1fr 1fr; }
+    .segment { grid-template-columns: minmax(0, 1fr) 15rem; align-items: center; padding: 0.45rem 0.7rem; }
+    .segments { gap: 0.45rem; }
+    .goal { padding: 0.75rem 0.9rem; }
+    .sentence { line-height: 2.5; }
+    .feedback ul { column-count: 3; column-gap: 1.75rem; font-size: 0.92rem; }
+    .feedback li { break-inside: avoid; }
+    .card { margin-bottom: 0.75rem; padding: 1rem 1.4rem; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+<main id="main">
+  <section class="card" aria-labelledby="title">
+    <header class="top">
+      <div>
+        <p class="kicker">OTD 6420 · Module 4</p>
+        <h1 id="title">Build a COAST goal</h1>
+        <p class="intro">COAST goals name the <strong>C</strong>lient, the <strong>O</strong>ccupation, the <strong>A</strong>ssist level, the <strong>S</strong>pecific condition, and the <strong>T</strong>imeline.</p>
+      </div>
+      <div class="score-pill" id="score-pill" aria-live="polite">0 / 14 correct</div>
+    </header>
+    <div class="progress">
+      <div class="progress-label"><span id="progress-caption">Progress</span><span id="progress-text">0%</span></div>
+      <div class="bar" role="progressbar" aria-labelledby="progress-caption" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressbar">
+        <div class="bar-fill" id="bar-fill"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="p1-title">
+    <h2 id="p1-title"><span class="part">Part 1</span>Label each part of the goal.</h2>
+    <div class="goals" id="goals"></div>
+  </section>
+
+  <section class="card" aria-labelledby="p2-title">
+    <h2 id="p2-title"><span class="part">Part 2</span>Choose the most measurable wording.</h2>
+    <p class="sentence" id="p2-sentence"></p>
+    <div class="actions">
+      <button type="button" class="btn btn-primary" id="check-btn">Check Answers</button>
+      <button type="button" class="btn btn-secondary" id="reset-btn">Reset</button>
+    </div>
+    <div class="feedback" id="feedback" role="status" aria-live="polite"></div>
+    <p class="note">COAST goal format (Gateley &amp; Borcherding). Ray and Lucy are the course’s simulated clients.</p>
+  </section>
+</main>
+</div>
+<footer class="finish-bar">
+  <button type="button" id="finish-button" class="finish-button" disabled>Finish</button>
+</footer>
+
+<script>
+  const SCORM = (() => {
+    let api = null, initialized = false, finished = false;
+    function findApi(win) {
+      let current = win, attempts = 0;
+      try {
+        while (current && !current.API && current.parent && current.parent !== current && attempts < 500) {
+          attempts += 1; current = current.parent;
+        }
+        if (current && current.API) return current.API;
+        if (win.opener && !win.opener.closed) return findApi(win.opener);
+      } catch (e) { return null; }
+      return null;
+    }
+    function call(method, ...args) {
+      if (!api || typeof api[method] !== "function") return "false";
+      try { return api[method](...args); } catch (e) { return "false"; }
+    }
+    function init() {
+      if (initialized) return true;
+      api = findApi(window);
+      if (!api) return false;
+      initialized = call("LMSInitialize", "") === "true";
+      if (initialized) {
+        const prior = call("LMSGetValue", "cmi.core.lesson_status");
+        if (prior !== "completed" && prior !== "passed") {
+          call("LMSSetValue", "cmi.core.lesson_status", "incomplete");
+        }
+        call("LMSCommit", "");
+      }
+      return initialized;
+    }
+    function setScore(raw) {
+      if (!initialized) return;
+      call("LMSSetValue", "cmi.core.score.raw", String(raw));
+      call("LMSCommit", "");
+    }
+    function finishActivity(score = 100) {
+      if (finished) return;
+      if (initialized) {
+        call("LMSSetValue", "cmi.core.lesson_status", "completed");
+        call("LMSSetValue", "cmi.core.score.raw", String(score));
+        call("LMSCommit", "");
+        call("LMSFinish", "");
+      }
+      finished = true;
+    }
+    function unloadSafety() {
+      if (finished || !initialized) return;
+      call("LMSCommit", "");
+      call("LMSFinish", "");
+      finished = true;
+    }
+    window.addEventListener("pagehide", unloadSafety);
+    window.addEventListener("beforeunload", unloadSafety);
+    return { init, setScore, finishActivity };
+  })();
+  SCORM.init();
+</script>
+<script>
+(() => {
+  const LABELS = ["Client", "Occupation", "Assist level", "Specific condition", "Timeline"];
+  const GOALS = [
+    { name: "Goal 1", segs: [
+      ["Ray", "Client"],
+      ["will prepare a simple cold lunch", "Occupation"],
+      ["with minimal verbal cues", "Assist level"],
+      ["using a picture-based recipe card", "Specific condition"],
+      ["within 3 weeks.", "Timeline"]
+    ]},
+    { name: "Goal 2", segs: [
+      ["Within 2 weeks,", "Timeline"],
+      ["Lucy", "Client"],
+      ["will complete her morning self-care routine", "Occupation"],
+      ["with modified independence", "Assist level"],
+      ["following a written checklist posted by her mirror.", "Specific condition"]
+    ]}
+  ];
+  // Part 2: first option listed is correct; display order is shuffled.
+  const P2 = [
+    { before: "Ray will ", after: " ", opts: ["take his medication as prescribed", "understand his medications better", "feel more confident about medications"] },
+    { before: "with ", after: " ", opts: ["supervision for safety", "some help", "good effort"] },
+    { before: "using ", after: " ", opts: ["a weekly pill organizer and phone alarm", "better habits", "his best judgment"] },
+    { before: "by ", after: ".", opts: ["discharge in 2 weeks", "eventually", "the end of therapy, if possible"] }
+  ];
+
+  const items = []; // { select, answer, desc }
+  const firstResult = new Map(); // select id -> true/false at first judgment
+  let completed = false;
+
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function makeSelect(id, options, answer, desc) {
+    const sel = document.createElement("select");
+    sel.className = "answer-select"; sel.id = id; sel.dataset.answer = answer;
+    const ph = document.createElement("option"); ph.value = ""; ph.textContent = "Choose…"; sel.appendChild(ph);
+    options.forEach(o => { const op = document.createElement("option"); op.value = o; op.textContent = o; sel.appendChild(op); });
+    sel.addEventListener("change", () => {
+      sel.classList.toggle("filled", sel.value !== "");
+      sel.classList.remove("incorrect"); sel.removeAttribute("aria-invalid");
+      const m = document.getElementById(id + "-mark"); if (m) { m.textContent = ""; m.className = "mark"; }
+    });
+    items.push({ select: sel, answer, desc });
+    return sel;
+  }
+  function makeMark(id) {
+    const s = document.createElement("span"); s.className = "mark"; s.id = id + "-mark"; s.setAttribute("aria-hidden", "true"); return s;
+  }
+
+  // Build Part 1
+  const goalsEl = document.getElementById("goals");
+  GOALS.forEach((g, gi) => {
+    const wrap = document.createElement("div"); wrap.className = "goal";
+    const h = document.createElement("h3"); h.id = "goal-" + (gi + 1) + "-title"; h.textContent = g.name; wrap.appendChild(h);
+    const full = document.createElement("p"); full.className = "sr-only"; full.textContent = g.name + ": " + g.segs.map(s => s[0]).join(" "); wrap.appendChild(full);
+    const ol = document.createElement("ol"); ol.className = "segments"; ol.setAttribute("aria-labelledby", h.id);
+    g.segs.forEach(([text, ans], si) => {
+      const id = "g" + (gi + 1) + "s" + (si + 1);
+      const li = document.createElement("li"); li.className = "segment";
+      const lab = document.createElement("label"); lab.setAttribute("for", id);
+      const q = document.createElement("q"); q.textContent = text; lab.appendChild(q);
+      const hidden = document.createElement("span"); hidden.className = "sr-only"; hidden.textContent = " — " + g.name + ", segment " + (si + 1) + " of 5. Which part of the goal is this?";
+      lab.appendChild(hidden);
+      const ctl = document.createElement("div"); ctl.className = "ctl";
+      const sel = makeSelect(id, LABELS, ans, g.name + " — “" + text + "”");
+      ctl.appendChild(sel); ctl.appendChild(makeMark(id));
+      li.appendChild(lab); li.appendChild(ctl); ol.appendChild(li);
+    });
+    wrap.appendChild(ol); goalsEl.appendChild(wrap);
+  });
+
+  // Build Part 2
+  const sent = document.getElementById("p2-sentence");
+  P2.forEach((b, bi) => {
+    sent.appendChild(document.createTextNode(b.before));
+    const id = "p2b" + (bi + 1);
+    const span = document.createElement("span"); span.className = "blank";
+    const lab = document.createElement("label"); lab.className = "sr-only"; lab.setAttribute("for", id);
+    lab.textContent = "Part 2, blank " + (bi + 1) + " of 4, after “" + b.before.trim() + "”";
+    const sel = makeSelect(id, shuffle(b.opts), b.opts[0], "Part 2, blank " + (bi + 1) + " (“" + b.before.trim() + " …”)");
+    span.appendChild(lab); span.appendChild(sel); span.appendChild(makeMark(id));
+    sent.appendChild(span);
+    sent.appendChild(document.createTextNode(b.after));
+  });
+
+  const total = items.length;
+  const pill = document.getElementById("score-pill");
+  const fill = document.getElementById("bar-fill");
+  const pbar = document.getElementById("progressbar");
+  const ptext = document.getElementById("progress-text");
+  const feedback = document.getElementById("feedback");
+  const finishBtn = document.getElementById("finish-button");
+
+  function updateProgress(nCorrect) {
+    const pct = Math.round(nCorrect / total * 100);
+    pill.textContent = nCorrect + " / " + total + " correct";
+    fill.style.width = pct + "%"; pbar.setAttribute("aria-valuenow", String(pct)); ptext.textContent = pct + "%";
+  }
+  function esc(s) { return s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+  function check() {
+    if (completed) return;
+    let nCorrect = 0, nBlank = 0, firstWrong = null;
+    items.forEach(it => {
+      const s = it.select, mark = document.getElementById(s.id + "-mark");
+      if (s.disabled) { nCorrect++; return; }
+      if (s.value === "") { nBlank++; if (!firstWrong) firstWrong = s; return; }
+      const ok = s.value === it.answer;
+      if (!firstResult.has(s.id)) firstResult.set(s.id, ok);
+      s.classList.add("filled");
+      if (ok) {
+        nCorrect++; s.classList.add("correct"); s.classList.remove("incorrect"); s.removeAttribute("aria-invalid"); s.disabled = true;
+        mark.textContent = "✓"; mark.className = "mark ok";
+      } else {
+        s.classList.add("incorrect"); s.setAttribute("aria-invalid", "true");
+        mark.textContent = "✗"; mark.className = "mark no";
+        if (!firstWrong) firstWrong = s;
+      }
+    });
+    updateProgress(nCorrect);
+    const firstScore = Math.round(items.filter(it => firstResult.get(it.select.id) === true).length / total * 100);
+    if (nCorrect === total) {
+      completed = true;
+      const missed = items.filter(it => firstResult.get(it.select.id) === false);
+      const firstRight = total - missed.length;
+      let html = missed.length === 0
+        ? "<p><strong>All 14 correct on your first check.</strong></p>"
+        : "<p><strong>All 14 are now correct. On your first check you had " + firstRight + " of 14 right.</strong> These took another pass — worth revisiting:</p><ul>" + missed.map(m => "<li>" + esc(m.desc) + " → " + esc(m.answer) + "</li>").join("") + "</ul>";
+      html += "<p>Activity complete — the Finish button is now available.</p>";
+      feedback.className = "feedback status-success"; feedback.innerHTML = html;
+      finishBtn.disabled = false; finishBtn.classList.add("ready");
+      finishBtn.dataset.score = String(Math.round(firstRight / total * 100));
+      SCORM.setScore(Number(finishBtn.dataset.score));
+    } else {
+      const nWrong = total - nCorrect - nBlank;
+      const parts = [];
+      parts.push(nCorrect + " of " + total + " correct.");
+      if (nWrong) parts.push(nWrong + " incorrect — marked ✗ in red; change them and check again.");
+      if (nBlank) parts.push(nBlank + " still blank.");
+      feedback.className = "feedback status-error"; feedback.innerHTML = "<p>" + parts.join(" ") + "</p>";
+      SCORM.setScore(firstScore);
+      if (firstWrong) firstWrong.focus();
+    }
+  }
+
+  function reset() {
+    if (completed) return;
+    items.forEach(it => {
+      const s = it.select; s.value = ""; s.disabled = false;
+      s.classList.remove("correct", "incorrect", "filled"); s.removeAttribute("aria-invalid");
+      const m = document.getElementById(s.id + "-mark"); m.textContent = ""; m.className = "mark";
+    });
+    updateProgress(0);
+    feedback.className = "feedback"; feedback.textContent = "";
+    items[0].select.focus();
+  }
+
+  document.getElementById("check-btn").addEventListener("click", check);
+  document.getElementById("reset-btn").addEventListener("click", reset);
+  finishBtn.addEventListener("click", () => {
+    SCORM.finishActivity(Number(finishBtn.dataset.score || 100));
+    finishBtn.textContent = "✓ Completed — you may close this window";
+    finishBtn.disabled = true; finishBtn.classList.remove("ready");
+  });
+})();
+</script>
+</body>
+</html>

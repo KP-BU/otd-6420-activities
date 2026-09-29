@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta name="robots" content="noindex">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sleep supports and sleep disruptors</title>
+<style>
+  :root {
+    --green: #154734;
+    --gold: #FFB81C;
+    --ink: #12352a;
+    --muted: #5f7068;
+    --soft-green: #e7f1ed;
+    --soft-gold: #fff4d8;
+    --line: #cfddd7;
+    --danger: #b42318; --danger-soft: #ffe5e2;
+    --success: #1f7a46; --success-soft: #e2f5e8;
+    --shadow: 0 22px 60px rgba(21, 71, 52, 0.16);
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-family: "Proxima Nova", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    line-height: 1.4;
+    background:
+      radial-gradient(circle at top left, rgba(255,184,28,0.28), transparent 30rem),
+      linear-gradient(135deg, #f7fbf8 0%, #eef7f3 100%);
+    background-attachment: fixed;
+  }
+  .page {
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: safe center;
+    width: min(100%, 46rem);
+    margin: 0 auto;
+    padding: clamp(0.9rem, 3vw, 1.5rem) clamp(0.85rem, 3vw, 1.5rem);
+    gap: clamp(0.75rem, 2vw, 1rem);
+  }
+  .panel {
+    background: rgba(255,255,255,0.94);
+    border: 2px solid rgba(21,71,52,0.1);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: clamp(0.85rem, 3vw, 1.25rem);
+  }
+  header.panel { border-top: 6px solid var(--green); }
+  .kicker {
+    margin: 0 0 0.25rem;
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  h1 { margin: 0 0 0.4rem; color: var(--green); font-size: clamp(1.45rem, 4.5vw, 2rem); line-height: 1.15; }
+  .instructions { margin: 0; font-size: 1.02rem; }
+
+  .score-row {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: 0.5rem 1rem;
+  }
+  .score {
+    margin: 0;
+    font-weight: 900;
+    color: var(--green);
+    font-size: 1.1rem;
+  }
+  .progress-track { flex: 1 1 12rem; height: 0.6rem; border-radius: 999px; background: var(--soft-green); overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--green), var(--success)); transition: width 300ms ease; }
+
+  .board { display: grid; grid-template-columns: 1fr; gap: clamp(0.75rem, 2vw, 1rem); }
+  .zone-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+    margin-bottom: 0.55rem;
+  }
+  .zone-head h2 { margin: 0; font-size: 1.15rem; color: var(--green); }
+  .zone-head .count { font-size: 0.9rem; color: var(--muted); font-weight: 700; }
+  .zone {
+    border-radius: 8px;
+    border: 2px dashed var(--line);
+    padding: 0.6rem;
+    min-height: 5rem;
+    transition: border-color 150ms ease, background 150ms ease;
+  }
+  .zone.is-over, .zone.is-target { border-color: var(--green); background: var(--soft-green); }
+  .item-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 0.5rem; }
+  .zone-hint { margin: 0.35rem 0; text-align: center; color: var(--muted); font-size: 0.95rem; }
+  .zone:has(.item) .zone-hint { display: none; }
+
+  .bin-panel.supports { border-top: 6px solid var(--success); }
+  .bin-panel.disrupts { border-top: 6px solid var(--danger); }
+
+  .item {
+    display: flex; align-items: center; gap: 0.5rem;
+    width: 100%;
+    min-height: 3rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 8px;
+    border: 2px solid #e8b53e;
+    background: var(--soft-gold);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.98rem;
+    font-weight: 700;
+    text-align: left;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .item:hover:not(:disabled) { border-color: var(--green); }
+  .item .grip { flex: 0 0 auto; color: var(--muted); font-weight: 900; letter-spacing: -0.1em; }
+  .item .label { flex: 1 1 auto; }
+  .item .badge { flex: 0 0 auto; font-size: 0.85rem; font-weight: 800; }
+  .item[aria-pressed="true"] {
+    background: #ffffff;
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px var(--gold);
+  }
+  .item.correct {
+    background: var(--success-soft);
+    border-color: var(--success);
+    border-style: solid;
+    color: var(--ink);
+    cursor: default;
+    pointer-events: none;
+  }
+  .item.correct .badge { color: var(--success); }
+  .item.was-wrong { border-color: var(--danger); background: var(--danger-soft); }
+  .item.was-wrong .badge { color: var(--danger); }
+  .item.shake { animation: shake 420ms ease; }
+  .item:focus-visible, button.btn:focus-visible, .finish-button:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 6px var(--green);
+  }
+  .ghost {
+    position: fixed; z-index: 50; pointer-events: none;
+    box-shadow: 0 14px 30px rgba(21,71,52,0.3);
+    opacity: 0.95;
+    transform: rotate(-1.5deg);
+  }
+  .item.dragging { opacity: 0.35; }
+
+  button.btn {
+    min-height: 2.75rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 8px;
+    border: 2px solid var(--green);
+    background: #ffffff;
+    color: var(--green);
+    font: inherit;
+    font-weight: 800;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  button.btn:hover:not(:disabled) { background: var(--soft-green); }
+  button.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.btn.primary { background: var(--gold); border-color: var(--gold); color: var(--green); min-height: 3rem; font-size: 1.02rem; }
+  button.btn.primary:hover:not(:disabled) { background: var(--green); border-color: var(--green); color: #ffffff; }
+  button.place-btn { min-height: 2.75rem; }
+
+  .check-row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: center; }
+  .check-row .btn.primary { width: min(100%, 16rem); }
+  .feedback { margin: 0; min-height: 1.5rem; font-weight: 700; text-align: center; }
+  .feedback.good { color: var(--success); }
+  .feedback.bad { color: var(--danger); }
+  .feedback.info { color: var(--ink); }
+
+  .summary h2 { margin: 0 0 0.3rem; color: var(--green); font-size: 1.3rem; }
+  .summary .lead { margin: 0 0 0.75rem; }
+  .summary-cols { display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
+  .summary-box { border-radius: 8px; padding: 0.7rem 0.9rem; border: 2px solid var(--line); }
+  .summary-box.missed-box { background: var(--soft-gold); border-color: #f2d58c; }
+  .summary-box.first-box { background: var(--success-soft); border-color: #b9dfc6; }
+  .summary-box h3 { margin: 0 0 0.35rem; font-size: 1.02rem; }
+  .summary-box ul { margin: 0; padding-left: 1.2rem; }
+  .summary-box li { margin: 0.2rem 0; font-size: 0.95rem; }
+  .summary-box .none { margin: 0; color: var(--muted); font-size: 0.95rem; }
+  .summary-actions { margin-top: 0.8rem; display: flex; justify-content: center; }
+
+  .note { margin: 0; font-size: 0.92rem; color: var(--muted); text-align: center; }
+  .sr-only {
+    position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+  [hidden] { display: none !important; }
+
+  .finish-bar {
+    position: sticky; bottom: 0; z-index: 30;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    background: rgba(247, 251, 248, 0.92);
+    backdrop-filter: blur(6px);
+    border-top: 2px solid var(--line);
+  }
+  .finish-button {
+    display: block; width: min(100%, 22rem); margin: 0 auto; min-height: 3rem;
+    border: 2px solid var(--gold); border-radius: 8px;
+    background: var(--gold); color: var(--green);
+    font: inherit; font-weight: 900; font-size: 1.05rem;
+    cursor: pointer;
+    transition: background 160ms ease, color 160ms ease, opacity 160ms ease;
+  }
+  .finish-button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .finish-button:not(:disabled):hover,
+  .finish-button:not(:disabled):focus-visible { background: var(--green); border-color: var(--green); color: #ffffff; }
+  .finish-button.is-ready { animation: pulse 1.6s ease-in-out 2; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,184,28,0); } 50% { box-shadow: 0 0 0 8px rgba(255,184,28,0.35); } }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(4px); } }
+
+  @media (min-width: 700px) and (max-width: 1099px) {
+    .page { width: min(100%, 62rem); padding-left: 1.25rem; padding-right: 1.25rem; }
+    .bins { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    #tray-list { grid-template-columns: 1fr 1fr; }
+  }
+  @media (min-width: 1100px) and (min-height: 900px) {
+    .page { width: min(100%, 82.5rem); }
+    .board { grid-template-columns: 1fr 1fr; align-items: start; }
+    .tray-panel { grid-column: 1 / -1; }
+    #tray-list { grid-template-columns: 1fr 1fr 1fr; }
+    .bins { display: contents; }
+    .summary-cols { grid-template-columns: 1fr 1fr; }
+    .summary-slot { grid-column: 1 / -1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .item.shake, .finish-button.is-ready { animation: none !important; }
+    .progress-fill { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main class="page" id="main">
+  <header class="panel">
+    <p class="kicker">OTD 6420 · Module 7</p>
+    <h1>Sleep supports and sleep disruptors</h1>
+    <p class="instructions">Sort each habit into the bin where it belongs, then select Check. Think about how each one affects sleep and, in turn, occupational performance the next day.</p>
+    <p class="sr-only">To sort with a keyboard: select a habit to pick it up, then use a bin's "Move here" button to place it.</p>
+  </header>
+
+  <section class="panel" aria-label="Score">
+    <div class="score-row">
+      <p class="score" id="score" aria-live="polite">0 of 10 correct</p>
+      <div class="progress-track" role="progressbar" aria-label="Habits sorted correctly" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0" id="progress">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="board">
+    <section class="panel tray-panel" id="tray-panel" aria-labelledby="tray-heading">
+      <div class="zone-head">
+        <h2 id="tray-heading">Habits to sort</h2>
+        <button type="button" class="btn place-btn" id="tray-place" data-target="tray" disabled>Move back here</button>
+      </div>
+      <div class="zone" id="tray" data-zone="tray">
+        <ul class="item-list" id="tray-list"></ul>
+        <p class="zone-hint">All habits are in a bin. Select Check when you're ready.</p>
+      </div>
+    </section>
+
+    <div class="bins">
+      <section class="panel bin-panel supports" aria-labelledby="supports-heading">
+        <div class="zone-head">
+          <h2 id="supports-heading">Supports sleep</h2>
+          <button type="button" class="btn place-btn" data-target="supports" disabled aria-label="Move here: Supports sleep">Move here</button>
+        </div>
+        <div class="zone" data-zone="supports">
+          <ul class="item-list" aria-labelledby="supports-heading"></ul>
+          <p class="zone-hint">Drag or place habits here</p>
+        </div>
+      </section>
+      <section class="panel bin-panel disrupts" aria-labelledby="disrupts-heading">
+        <div class="zone-head">
+          <h2 id="disrupts-heading">Disrupts sleep</h2>
+          <button type="button" class="btn place-btn" data-target="disrupts" disabled aria-label="Move here: Disrupts sleep">Move here</button>
+        </div>
+        <div class="zone" data-zone="disrupts">
+          <ul class="item-list" aria-labelledby="disrupts-heading"></ul>
+          <p class="zone-hint">Drag or place habits here</p>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel summary summary-slot" id="summary" hidden tabindex="-1" aria-labelledby="summary-heading">
+      <h2 id="summary-heading">All habits sorted</h2>
+      <p class="lead" id="summary-lead"></p>
+      <div class="summary-cols">
+        <div class="summary-box missed-box">
+          <h3>Worth another look</h3>
+          <ul id="missed-list"></ul>
+          <p class="none" id="missed-none" hidden>None — every habit was sorted correctly on the first check.</p>
+        </div>
+        <div class="summary-box first-box">
+          <h3>Right on the first check</h3>
+          <ul id="first-list"></ul>
+          <p class="none" id="first-none" hidden>None this time — the list on the left is your study list.</p>
+        </div>
+      </div>
+      <div class="summary-actions">
+        <button type="button" class="btn" id="retry-button">Sort again for practice</button>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel" id="check-panel" aria-label="Check your sorting">
+    <div class="check-row">
+      <button type="button" class="btn primary" id="check-button">Check</button>
+    </div>
+    <p class="feedback" id="feedback" aria-live="polite"></p>
+  </section>
+
+  <p class="note">See Chapter 52, Sleep. Consistent sleep routines are a performance pattern that supports health and wellness.</p>
+  <p class="sr-only" id="live" aria-live="polite"></p>
+</main>
+
+<footer class="finish-bar">
+  <button type="button" id="finish-button" class="finish-button" disabled aria-describedby="finish-help">Finish</button>
+  <p id="finish-help" class="sr-only">Available after every habit is sorted correctly.</p>
+</footer>
+
+<script>
+  const SCORM = (() => {
+    let api = null, initialized = false, finished = false;
+
+    function findApi(win) {
+      let current = win, attempts = 0;
+      try {
+        while (current && !current.API && current.parent && current.parent !== current && attempts < 500) {
+          attempts += 1; current = current.parent;
+        }
+        if (current && current.API) return current.API;
+        if (win.opener && !win.opener.closed) return findApi(win.opener);
+      } catch (e) { return null; }
+      return null;
+    }
+
+    function call(method, ...args) {
+      if (!api || typeof api[method] !== "function") return "false";
+      try { return api[method](...args); } catch (e) { return "false"; }
+    }
+
+    function init() {
+      if (initialized) return true;
+      api = findApi(window);
+      if (!api) return false;
+      initialized = call("LMSInitialize", "") === "true";
+      if (initialized) {
+        const prior = call("LMSGetValue", "cmi.core.lesson_status");
+        if (prior !== "completed" && prior !== "passed") {
+          call("LMSSetValue", "cmi.core.lesson_status", "incomplete");
+        }
+        call("LMSCommit", "");
+      }
+      return initialized;
+    }
+
+    function setScore(raw) {
+      if (!initialized) return;
+      call("LMSSetValue", "cmi.core.score.raw", String(raw));
+      call("LMSCommit", "");
+    }
+
+    function finishActivity(score = 100) {
+      if (finished) return;
+      if (initialized) {
+        call("LMSSetValue", "cmi.core.lesson_status", "completed");
+        call("LMSSetValue", "cmi.core.score.raw", String(score));
+        call("LMSCommit", "");
+        call("LMSFinish", "");
+      }
+      finished = true;
+    }
+
+    function unloadSafety() {
+      if (finished || !initialized) return;
+      call("LMSCommit", "");
+      call("LMSFinish", "");
+      finished = true;
+    }
+
+    window.addEventListener("pagehide", unloadSafety);
+    window.addEventListener("beforeunload", unloadSafety);
+
+    return { init, setScore, finishActivity };
+  })();
+
+  SCORM.init();
+</script>
+<script>
+(() => {
+  const CATEGORIES = { supports: "Supports sleep", disrupts: "Disrupts sleep", tray: "Habits to sort" };
+  const ITEMS = [
+    { id: "s1", label: "Getting up at the same time every day, including weekends", answers: ["supports"] },
+    { id: "s2", label: "Turning off screens 30–60 minutes before bed", answers: ["supports"] },
+    { id: "s3", label: "Getting daylight or a short walk in the morning", answers: ["supports"] },
+    { id: "s4", label: "Using the bed only for sleep and intimacy", answers: ["supports"] },
+    { id: "s5", label: "Following a calming bedtime routine, such as reading or stretching", answers: ["supports"] },
+    { id: "d1", label: "Drinking coffee or energy drinks in the late afternoon", answers: ["disrupts"] },
+    { id: "d2", label: "Taking long naps late in the day", answers: ["disrupts"] },
+    { id: "d3", label: "Lying in bed scrolling on a phone for hours when unable to sleep", answers: ["disrupts"] },
+    { id: "d4", label: "Eating a heavy meal right before bed", answers: ["disrupts"] },
+    { id: "d5", label: "Using alcohol to fall asleep", answers: ["disrupts"] }
+  ];
+  const TOTAL = ITEMS.length;
+
+  const $ = (id) => document.getElementById(id);
+  const zones = {};
+  document.querySelectorAll("[data-zone]").forEach((z) => { zones[z.dataset.zone] = z; });
+  const lists = {
+    tray: $("tray-list"),
+    supports: zones.supports.querySelector(".item-list"),
+    disrupts: zones.disrupts.querySelector(".item-list")
+  };
+  const placeButtons = Array.from(document.querySelectorAll(".place-btn"));
+  const el = {
+    score: $("score"), progress: $("progress"), fill: $("progress-fill"),
+    check: $("check-button"), feedback: $("feedback"), live: $("live"),
+    finish: $("finish-button"), summary: $("summary"), trayPanel: $("tray-panel"),
+    lead: $("summary-lead"), missedList: $("missed-list"), firstList: $("first-list"),
+    missedNone: $("missed-none"), firstNone: $("first-none"), retry: $("retry-button"), checkPanel: $("check-panel")
+  };
+
+  let selected = null;
+  let firstResult = {};      // id -> true/false at the item's first check while placed
+  let checksNeeded = {};     // id -> number of wrong checks
+  let frozenScore = null;
+  let completedOnce = false;
+  let practiceRound = false;
+
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function itemById(id) { return ITEMS.find((i) => i.id === id); }
+  function zoneOf(btn) { const z = btn.closest("[data-zone]"); return z ? z.dataset.zone : null; }
+
+  function makeItem(item) {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "item";
+    b.dataset.id = item.id;
+    b.setAttribute("aria-pressed", "false");
+    b.innerHTML = '<span class="grip" aria-hidden="true">⋮⋮</span><span class="label"></span><span class="badge"></span>';
+    b.querySelector(".label").textContent = item.label;
+    li.appendChild(b);
+    wireItem(b);
+    return li;
+  }
+
+  function setBadge(btn, text) { btn.querySelector(".badge").textContent = text; }
+
+  function select(btn) {
+    if (!btn || btn.classList.contains("correct")) return;
+    if (selected === btn) { deselect(); el.live.textContent = "Selection cleared."; return; }
+    deselect();
+    selected = btn;
+    btn.setAttribute("aria-pressed", "true");
+    const from = zoneOf(btn);
+    placeButtons.forEach((p) => { p.disabled = p.dataset.target === from; });
+    Object.entries(zones).forEach(([k, z]) => z.classList.toggle("is-target", k !== from));
+    el.feedback.className = "feedback info";
+    el.feedback.textContent = "Selected: " + itemById(btn.dataset.id).label + ". Now choose a bin.";
+  }
+
+  function deselect() {
+    if (selected) selected.setAttribute("aria-pressed", "false");
+    selected = null;
+    placeButtons.forEach((p) => { p.disabled = true; });
+    Object.values(zones).forEach((z) => z.classList.remove("is-target", "is-over"));
+  }
+
+  function moveTo(btn, target, viaKeyboard) {
+    if (!btn || btn.classList.contains("correct") || !lists[target]) return;
+    const from = zoneOf(btn);
+    btn.classList.remove("was-wrong", "shake");
+    setBadge(btn, "");
+    deselect();
+    if (from !== target) lists[target].appendChild(btn.parentElement);
+    el.feedback.className = "feedback info";
+    el.feedback.textContent = "Moved to " + CATEGORIES[target] + ": " + itemById(btn.dataset.id).label + ".";
+    if (viaKeyboard) {
+      const next = lists.tray.querySelector(".item:not(.correct)");
+      (next || el.check).focus();
+    }
+  }
+
+  // Pointer-driven dragging (works for mouse, touch, and pen)
+  let drag = null;
+  let suppressClick = false;
+
+  function wireItem(btn) {
+    btn.addEventListener("click", () => {
+      if (suppressClick) { suppressClick = false; return; }
+      select(btn);
+    });
+    btn.addEventListener("pointerdown", (e) => {
+      if (btn.classList.contains("correct") || e.button > 0) return;
+      drag = { btn, startX: e.clientX, startY: e.clientY, active: false, ghost: null, id: e.pointerId };
+      try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    });
+    btn.addEventListener("pointermove", (e) => {
+      if (!drag || drag.btn !== btn) return;
+      const dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+      if (!drag.active && Math.hypot(dx, dy) > 6) {
+        drag.active = true;
+        const r = btn.getBoundingClientRect();
+        const g = btn.cloneNode(true);
+        g.classList.add("ghost");
+        g.removeAttribute("id");
+        g.setAttribute("aria-hidden", "true");
+        g.tabIndex = -1;
+        g.style.width = r.width + "px";
+        drag.offX = drag.startX - r.left;
+        drag.offY = drag.startY - r.top;
+        document.body.appendChild(g);
+        drag.ghost = g;
+        btn.classList.add("dragging");
+      }
+      if (drag.active) {
+        drag.ghost.style.left = (e.clientX - drag.offX) + "px";
+        drag.ghost.style.top = (e.clientY - drag.offY) + "px";
+        const over = zoneAt(e.clientX, e.clientY);
+        Object.values(zones).forEach((z) => z.classList.toggle("is-over", z === over));
+      }
+    });
+    const end = (e) => {
+      if (!drag || drag.btn !== btn) return;
+      const wasActive = drag.active;
+      if (drag.ghost) drag.ghost.remove();
+      btn.classList.remove("dragging");
+      Object.values(zones).forEach((z) => z.classList.remove("is-over"));
+      if (wasActive) {
+        suppressClick = true;
+        setTimeout(() => { suppressClick = false; }, 0);
+        if (e.type === "pointerup") {
+          const over = zoneAt(e.clientX, e.clientY);
+          if (over) moveTo(btn, over.dataset.zone, false);
+        }
+      }
+      drag = null;
+    };
+    btn.addEventListener("pointerup", end);
+    btn.addEventListener("pointercancel", end);
+  }
+
+  function zoneAt(x, y) {
+    const hit = document.elementFromPoint(x, y);
+    if (!hit) return null;
+    const panel = hit.closest(".tray-panel, .bin-panel");
+    if (panel) return panel.querySelector("[data-zone]");
+    return hit.closest("[data-zone]");
+  }
+
+  // Tap/click a bin (anywhere on its panel) to place the selected item
+  document.querySelectorAll(".tray-panel, .bin-panel").forEach((panel) => {
+    panel.addEventListener("click", (e) => {
+      if (!selected) return;
+      if (e.target.closest(".item") || e.target.closest(".place-btn")) return;
+      const z = panel.querySelector("[data-zone]");
+      moveTo(selected, z.dataset.zone, false);
+    });
+  });
+  placeButtons.forEach((p) => {
+    p.addEventListener("click", () => { if (selected) moveTo(selected, p.dataset.target, true); });
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && selected) { deselect(); el.feedback.textContent = "Selection cleared."; }
+  });
+
+  function updateScore() {
+    const n = document.querySelectorAll(".item.correct").length;
+    el.score.textContent = n + " of " + TOTAL + " correct";
+    el.progress.setAttribute("aria-valuenow", String(n));
+    el.fill.style.width = (n / TOTAL * 100) + "%";
+    return n;
+  }
+
+  function check() {
+    deselect();
+    const items = Array.from(document.querySelectorAll(".item:not(.correct)"));
+    let right = 0, wrong = 0, unplaced = 0;
+    items.forEach((btn) => {
+      const z = zoneOf(btn);
+      const it = itemById(btn.dataset.id);
+      if (z === "tray") { unplaced += 1; return; }
+      const ok = it.answers.includes(z);
+      if (!practiceRound && !(it.id in firstResult)) firstResult[it.id] = ok;
+      if (ok) {
+        right += 1;
+        btn.classList.add("correct");
+        btn.classList.remove("was-wrong");
+        btn.disabled = true;
+        btn.setAttribute("aria-pressed", "false");
+        setBadge(btn, "✓ Correct");
+      } else {
+        wrong += 1;
+        if (!practiceRound) checksNeeded[it.id] = (checksNeeded[it.id] || 0) + 1;
+        lists.tray.appendChild(btn.parentElement);
+        btn.classList.add("was-wrong");
+        setBadge(btn, "✗ Try again");
+        btn.classList.remove("shake");
+        void btn.offsetWidth;
+        btn.classList.add("shake");
+      }
+    });
+    const total = updateScore();
+    if (total === TOTAL) { complete(); return; }
+    const parts = [];
+    if (right) parts.push(right + (right === 1 ? " habit is" : " habits are") + " correct and locked in");
+    if (wrong) parts.push(wrong + (wrong === 1 ? " habit went" : " habits went") + " back to the tray — try the other bin");
+    if (unplaced) parts.push(unplaced + (unplaced === 1 ? " habit is" : " habits are") + " still waiting in the tray");
+    el.feedback.className = wrong ? "feedback bad" : "feedback info";
+    el.feedback.textContent = (parts.join("; ") || "Place some habits in a bin first") + ".";
+    const next = lists.tray.querySelector(".item:not(.correct)");
+    if (document.activeElement === el.check && next && wrong) next.focus();
+  }
+
+  function li(text) { const x = document.createElement("li"); x.textContent = text; return x; }
+
+  function complete() {
+    const firstRight = ITEMS.filter((i) => firstResult[i.id] === true).length;
+    if (frozenScore === null) {
+      frozenScore = Math.round(firstRight / TOTAL * 100);
+      SCORM.setScore(frozenScore);
+    }
+    el.missedList.innerHTML = "";
+    el.firstList.innerHTML = "";
+    const missed = ITEMS.filter((i) => firstResult[i.id] !== true);
+    const first = ITEMS.filter((i) => firstResult[i.id] === true);
+    missed.forEach((i) => {
+      const n = checksNeeded[i.id] || 1;
+      el.missedList.appendChild(li(i.label + " → " + CATEGORIES[i.answers[0]] + " (took " + (n + 1) + " checks)"));
+    });
+    first.forEach((i) => el.firstList.appendChild(li(i.label + " → " + CATEGORIES[i.answers[0]])));
+    el.missedNone.hidden = missed.length > 0;
+    el.firstNone.hidden = first.length > 0;
+    el.lead.textContent = first.length === TOTAL
+      ? "You sorted all " + TOTAL + " habits correctly on the first check — a perfect first pass."
+      : "You sorted " + first.length + " of " + TOTAL + " habits correctly on the first check, then fixed the other " +
+        missed.length + ". The ones worth another look are listed first.";
+    el.check.disabled = true;
+    el.trayPanel.hidden = true;
+    el.summary.hidden = false;
+    el.checkPanel.hidden = true;
+    el.feedback.className = "feedback good";
+    el.feedback.textContent = "✓ Every habit is in the right bin.";
+    el.summary.focus();
+    if (!completedOnce) {
+      completedOnce = true;
+      el.finish.disabled = false;
+      el.finish.classList.add("is-ready");
+      el.live.textContent = "All habits sorted. " + el.lead.textContent + " Activity complete — the Finish button is now available.";
+    } else {
+      el.live.textContent = "Practice round complete. " + el.lead.textContent;
+    }
+  }
+
+  function build(isPractice) {
+    practiceRound = isPractice;
+    deselect();
+    Object.values(lists).forEach((l) => { l.innerHTML = ""; });
+    shuffle(ITEMS).forEach((it) => lists.tray.appendChild(makeItem(it)));
+    el.check.disabled = false;
+    el.trayPanel.hidden = false;
+    el.summary.hidden = true;
+    el.checkPanel.hidden = false;
+    el.feedback.textContent = "";
+    updateScore();
+  }
+
+  el.check.addEventListener("click", check);
+  el.retry.addEventListener("click", () => {
+    build(true);
+    const first = lists.tray.querySelector(".item");
+    if (first) first.focus();
+    el.live.textContent = "Practice round started. Your first-check result is already saved.";
+  });
+  el.finish.addEventListener("click", () => {
+    if (el.finish.disabled) return;
+    SCORM.finishActivity(frozenScore === null ? 0 : frozenScore);
+    el.finish.classList.remove("is-ready");
+    el.finish.textContent = "✓ Completed — you may close this window";
+    el.finish.disabled = true;
+    el.live.textContent = "Activity completed. You may close this window.";
+  });
+
+  build(false);
+})();
+</script>
+</body>
+</html>

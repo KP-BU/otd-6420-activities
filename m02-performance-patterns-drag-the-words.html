@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta name="robots" content="noindex">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patterns that shape the day</title>
+<style>
+  :root {
+    --green: #154734;
+    --gold: #FFB81C;
+    --ink: #12352a;
+    --muted: #5f7068;
+    --soft-green: #e7f1ed;
+    --soft-gold: #fff4d8;
+    --line: #cfddd7;
+    --danger: #b42318; --danger-soft: #ffe5e2;
+    --success: #1f7a46; --success-soft: #e2f5e8;
+    --shadow: 0 22px 60px rgba(21, 71, 52, 0.16);
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-family: "Proxima Nova", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    line-height: 1.5;
+    background:
+      radial-gradient(circle at top left, rgba(255,184,28,0.28), transparent 30rem),
+      linear-gradient(135deg, #f7fbf8 0%, #eef7f3 100%);
+    overflow-x: hidden;
+  }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  main {
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: safe center;
+    width: min(100%, 46rem);
+    margin: 0 auto;
+    padding: clamp(0.9rem, 3vw, 1.75rem) clamp(0.75rem, 3vw, 1.5rem);
+    gap: 1rem;
+  }
+  .card {
+    background: rgba(255,255,255,0.94);
+    border: 2px solid rgba(21,71,52,0.1);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: clamp(1rem, 3vw, 1.5rem);
+  }
+  header.intro { border-top: 6px solid var(--green); }
+  .kicker {
+    margin: 0 0 0.25rem;
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  h1 { margin: 0 0 0.5rem; color: var(--green); font-size: clamp(1.6rem, 4.5vw, 2.2rem); line-height: 1.15; }
+  .instructions { margin: 0; font-size: 1.02rem; }
+
+  .progress-row { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.9rem; flex-wrap: wrap; }
+  .score-pill {
+    background: var(--soft-green); color: var(--green);
+    border: 2px solid var(--line); border-radius: 999px;
+    padding: 0.2rem 0.8rem; font-weight: 800; font-size: 0.95rem; white-space: nowrap;
+  }
+  .progress-track {
+    flex: 1 1 10rem; height: 0.7rem; min-width: 8rem;
+    background: var(--soft-green); border-radius: 999px; overflow: hidden; border: 1px solid var(--line);
+  }
+  .progress-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--green), #2d7a5a 60%, var(--gold));
+    transition: width 320ms ease;
+  }
+
+  /* Word bank */
+  .word-panel {
+    background: var(--green);
+    color: #fff;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: var(--shadow);
+  }
+  .word-panel h2 { margin: 0 0 0.6rem; font-size: 1.05rem; color: #fff; }
+  .word-panel .bank-hint { margin: 0 0 0.75rem; font-size: 0.92rem; color: #e7f1ed; }
+  .bank {
+    list-style: none; margin: 0; padding: 0.25rem;
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem;
+    border-radius: 8px; min-height: 3.5rem;
+  }
+  .bank.drop-hover { outline: 3px dashed var(--gold); outline-offset: 2px; }
+  .bank li { display: flex; }
+  .word-tile {
+    flex: 1;
+    min-height: 3rem;
+    padding: 0.45rem 0.75rem;
+    border: 2px solid var(--gold);
+    border-radius: 8px;
+    background: var(--gold);
+    color: var(--green);
+    font: inherit;
+    font-weight: 800;
+    font-size: 1.02rem;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+  }
+  .word-tile:hover { box-shadow: 0 0 0 3px rgba(255,255,255,0.55); }
+  .word-tile:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .word-tile.selected {
+    background: #fff; border-color: #fff; color: var(--green);
+    box-shadow: 0 0 0 4px var(--gold);
+    transform: translateY(-2px);
+  }
+  .word-tile.selected::before { content: "\25B6  "; font-size: 0.8em; }
+  .word-tile.placed-away { visibility: hidden; }
+  .drag-ghost {
+    position: fixed; z-index: 100; pointer-events: none;
+    width: var(--drag-width); margin: 0;
+    transform: translate(-50%, -50%) rotate(-2deg);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.3);
+    cursor: grabbing;
+  }
+
+  /* Sentences */
+  .sentences-card h2 { margin: 0 0 0.6rem; font-size: 1.05rem; color: var(--green); }
+  ol.sentences { margin: 0; padding: 0; list-style: none; counter-reset: s; }
+  ol.sentences li {
+    counter-increment: s;
+    break-inside: avoid;
+    position: relative;
+    padding: 0.6rem 0.75rem 0.6rem 2.6rem;
+    margin: 0 0 0.6rem;
+    border: 2px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    line-height: 2.1;
+    font-size: 1rem;
+  }
+  ol.sentences li::before {
+    content: counter(s);
+    position: absolute; left: 0.6rem; top: 0.75rem;
+    width: 1.5rem; height: 1.5rem; border-radius: 50%;
+    background: var(--green); color: #fff;
+    font-weight: 800; font-size: 0.85rem; line-height: 1.5rem; text-align: center;
+  }
+  ol.sentences li.is-correct { border-color: var(--success); background: var(--success-soft); }
+  .drop-zone {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem;
+    min-width: 8.2em; min-height: 2.75rem;
+    margin: 0.1rem 0.15rem;
+    padding: 0.1rem 0.6rem;
+    vertical-align: middle;
+    border: 2px dashed var(--green);
+    border-radius: 8px;
+    background: var(--soft-gold);
+    color: var(--muted);
+    font: inherit; font-weight: 700; line-height: 1.2;
+    cursor: pointer;
+    touch-action: none;
+  }
+  .drop-zone:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+  .drop-zone.filled {
+    border-style: solid; background: var(--gold); color: var(--green); font-weight: 800;
+  }
+  .drop-zone.target-ready { box-shadow: 0 0 0 3px rgba(21,71,52,0.25); }
+  .drop-zone.drop-hover { box-shadow: 0 0 0 4px var(--green); background: #ffe7a8; }
+  .drop-zone.incorrect { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
+  .drop-zone.correct, .drop-zone.correct:disabled {
+    border-style: solid; border-color: var(--success); background: #fff; color: var(--success);
+    cursor: default; opacity: 1;
+  }
+  .mark { font-weight: 900; }
+
+  /* Controls & status */
+  .controls { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+  .btn {
+    min-height: 3rem; padding: 0.5rem 1.25rem;
+    border-radius: 8px; border: 2px solid var(--green);
+    font: inherit; font-weight: 800; cursor: pointer;
+  }
+  .btn-primary { background: var(--green); color: #fff; }
+  .btn-primary:hover, .btn-primary:focus-visible { background: #0e3325; }
+  .btn-secondary { background: #fff; color: var(--green); }
+  .btn-secondary:hover, .btn-secondary:focus-visible { background: var(--soft-green); }
+  .btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .status {
+    flex: 1 1 16rem; margin: 0; padding: 0.55rem 0.85rem; border-radius: 8px;
+    border-left: 6px solid var(--line); background: #fff; font-weight: 600; min-height: 3rem;
+    display: flex; align-items: center;
+  }
+  .status.status-success { border-left-color: var(--success); background: var(--success-soft); color: #145a33; }
+  .status.status-error { border-left-color: var(--danger); background: var(--danger-soft); color: #8f1c13; }
+
+  .summary { border-top: 6px solid var(--gold); }
+  .summary[hidden], .word-panel[hidden] { display: none; }
+  .summary h2 { margin: 0 0 0.4rem; color: var(--green); font-size: 1.2rem; }
+  .summary p { margin: 0 0 0.5rem; }
+  .summary ul { display: inline; margin: 0; padding: 0; list-style: none; }
+  .summary li { display: inline; }
+  .summary li:not(:last-child)::after { content: ", "; }
+  .summary-cols { display: grid; gap: 0.5rem 1.5rem; }
+
+  .footnote { margin: 0; font-size: 0.9rem; color: var(--muted); text-align: center; }
+
+  .finish-bar {
+    position: sticky; bottom: 0; z-index: 30;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    background: rgba(247, 251, 248, 0.92);
+    backdrop-filter: blur(6px);
+    border-top: 2px solid var(--line);
+  }
+  .finish-button {
+    display: block; width: min(100%, 22rem); margin: 0 auto; min-height: 3rem;
+    border: 2px solid var(--gold); border-radius: 8px;
+    background: var(--gold); color: var(--green);
+    font: inherit; font-weight: 900; font-size: 1.05rem; cursor: pointer;
+    transition: background 160ms ease, color 160ms ease, opacity 160ms ease;
+  }
+  .finish-button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .finish-button:not(:disabled):hover,
+  .finish-button:not(:disabled):focus-visible {
+    background: var(--green); border-color: var(--green); color: #ffffff; outline: none;
+  }
+  .finish-button.ready { animation: pulse 1.6s ease 2; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(255,184,28,0.35); } }
+
+  @media (max-width: 520px) {
+    .bank { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .controls .btn { flex: 1 1 100%; }
+  }
+  @media (min-width: 700px) and (max-width: 1099px) {
+    main { width: min(100%, 62rem); padding-left: 1rem; padding-right: 1rem; }
+    .bank { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1100px) and (min-height: 900px) {
+    main { width: min(100%, 1320px); padding: 1.25rem 1.5rem; gap: 1rem; }
+    .bank { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    ol.sentences { column-count: 2; column-gap: 1rem; }
+    ol.sentences li { display: inline-block; width: 100%; }
+    .summary-cols { grid-template-columns: 1fr 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<main id="main">
+  <header class="card intro">
+    <p class="kicker">OTD 6420 · Module 2</p>
+    <h1>Patterns that shape the day</h1>
+    <p class="instructions">Drag each word from the bank into the sentence it completes, then select Check. Two words in the bank are not used.</p>
+    <p class="sr-only">Keyboard: select a word, then select a blank to place it. Select a filled blank to send its word back to the bank.</p>
+    <div class="progress-row">
+      <span class="score-pill" id="score-pill">0/8 correct</span>
+      <div class="progress-track" role="progressbar" id="progressbar" aria-label="Blanks answered correctly" aria-valuemin="0" aria-valuemax="8" aria-valuenow="0">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="word-panel" id="word-panel" aria-labelledby="bank-heading">
+    <h2 id="bank-heading">Word bank</h2>
+    <p class="bank-hint">Drag a word to a blank, or select a word and then select a blank.</p>
+    <ul class="bank" id="bank"></ul>
+  </section>
+
+  <section class="card summary" id="summary" hidden tabindex="-1" aria-labelledby="summary-heading">
+    <h2 id="summary-heading">Summary</h2>
+    <p id="summary-headline"></p>
+    <div class="summary-cols" id="summary-cols"></div>
+  </section>
+
+  <section class="card sentences-card" aria-labelledby="sentences-heading">
+    <h2 id="sentences-heading">Sentences</h2>
+    <ol class="sentences" id="sentences"></ol>
+  </section>
+
+  <div class="controls">
+    <button type="button" class="btn btn-primary" id="check-button">Check</button>
+    <button type="button" class="btn btn-secondary" id="reset-button">Reset</button>
+    <p class="status" id="status" role="status" aria-live="polite">Place a word in each blank, then select Check.</p>
+  </div>
+
+
+  <p class="footnote">Terms from the Occupational Therapy Practice Framework (4th ed.) and Chapter 14, Time Use and Habits.</p>
+</main>
+
+<footer class="finish-bar">
+  <button type="button" id="finish-button" class="finish-button" disabled aria-disabled="true">Finish</button>
+</footer>
+<p class="sr-only" id="live" aria-live="polite"></p>
+
+<script>
+  const SCORM = (() => {
+    let api = null, initialized = false, finished = false;
+
+    function findApi(win) {
+      let current = win, attempts = 0;
+      try {
+        while (current && !current.API && current.parent && current.parent !== current && attempts < 500) {
+          attempts += 1; current = current.parent;
+        }
+        if (current && current.API) return current.API;
+        if (win.opener && !win.opener.closed) return findApi(win.opener);
+      } catch (e) { return null; }
+      return null;
+    }
+
+    function call(method, ...args) {
+      if (!api || typeof api[method] !== "function") return "false";
+      try { return api[method](...args); } catch (e) { return "false"; }
+    }
+
+    function init() {
+      if (initialized) return true;
+      api = findApi(window);
+      if (!api) return false;
+      initialized = call("LMSInitialize", "") === "true";
+      if (initialized) {
+        const prior = call("LMSGetValue", "cmi.core.lesson_status");
+        if (prior !== "completed" && prior !== "passed") {
+          call("LMSSetValue", "cmi.core.lesson_status", "incomplete");
+        }
+        call("LMSCommit", "");
+      }
+      return initialized;
+    }
+
+    function setScore(raw) {
+      if (!initialized) return;
+      call("LMSSetValue", "cmi.core.score.raw", String(raw));
+      call("LMSCommit", "");
+    }
+
+    function finishActivity(score = 100) {
+      if (finished) return;
+      if (initialized) {
+        call("LMSSetValue", "cmi.core.lesson_status", "completed");
+        call("LMSSetValue", "cmi.core.score.raw", String(score));
+        call("LMSCommit", "");
+        call("LMSFinish", "");
+      }
+      finished = true;
+    }
+
+    function unloadSafety() {
+      if (finished || !initialized) return;
+      call("LMSCommit", "");
+      call("LMSFinish", "");
+      finished = true;
+    }
+
+    window.addEventListener("pagehide", unloadSafety);
+    window.addEventListener("beforeunload", unloadSafety);
+
+    return { init, setScore, finishActivity };
+  })();
+
+  SCORM.init();
+</script>
+<script>
+(() => {
+  const ITEMS = [
+    "An automatic behavior done with little conscious thought, like reaching for a phone on waking, is a *habit*.",
+    "An established sequence of occupations that gives structure to the day, such as the steps of getting ready for work, is a *routine*.",
+    "A set of behaviors expected by society and shaped by culture, such as parent, employee, or student, is a *role*.",
+    "A symbolic action with spiritual, cultural, or social meaning, such as lighting a candle on a loved one's birthday, is a *ritual*.",
+    "After a psychiatric hospitalization, losing the *worker* role can change a person's identity and how they use their time.",
+    "A satisfying mix of self-care, productive, rest, and leisure occupations across the day is called occupational *balance*.",
+    "OT often rebuilds structure with small, predictable anchors, such as a consistent *wake* time.",
+    "Performance patterns can support occupational performance, or they can *hinder* it, as when depression leads a person to drop most daily activities."
+  ].map((text) => {
+    const m = text.match(/^(.*)\*([^*]+)\*(.*)$/);
+    return { before: m[1], answer: m[2], after: m[3] };
+  });
+  const BANK_ORDER = ["routine", "skill", "wake", "habit", "hinder", "role", "balance", "factor", "ritual", "worker"];
+  const TOTAL = ITEMS.length;
+
+  const bankEl = document.getElementById("bank");
+  const listEl = document.getElementById("sentences");
+  const statusEl = document.getElementById("status");
+  const liveEl = document.getElementById("live");
+  const pill = document.getElementById("score-pill");
+  const bar = document.getElementById("progressbar");
+  const fill = document.getElementById("progress-fill");
+  const checkBtn = document.getElementById("check-button");
+  const resetBtn = document.getElementById("reset-button");
+  const finishBtn = document.getElementById("finish-button");
+  const summary = document.getElementById("summary");
+
+  const placements = new Array(TOTAL).fill(null);
+  const locked = new Array(TOTAL).fill(false);
+  const wrongMark = new Array(TOTAL).fill(false);
+  const firstResult = new Array(TOTAL).fill(null); // true/false on first check while filled
+  let selected = null;   // { word, from: "bank" | zoneIndex }
+  let completed = false;
+  let firstScore = null;
+
+  const tiles = {};
+  BANK_ORDER.forEach((word) => {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "word-tile";
+    b.dataset.word = word;
+    b.textContent = word;
+    b.setAttribute("aria-pressed", "false");
+    li.appendChild(b);
+    bankEl.appendChild(li);
+    tiles[word] = b;
+  });
+
+  const zones = ITEMS.map((item, i) => {
+    const li = document.createElement("li");
+    li.appendChild(document.createTextNode(item.before));
+    const z = document.createElement("button");
+    z.type = "button";
+    z.className = "drop-zone";
+    z.dataset.index = String(i);
+    li.appendChild(z);
+    li.appendChild(document.createTextNode(item.after));
+    listEl.appendChild(li);
+    return z;
+  });
+
+  function announce(msg) { liveEl.textContent = ""; setTimeout(() => { liveEl.textContent = msg; }, 30); }
+  function setStatus(msg, kind) {
+    statusEl.textContent = msg;
+    statusEl.classList.remove("status-success", "status-error");
+    if (kind) statusEl.classList.add("status-" + kind);
+  }
+
+  function render() {
+    const used = new Set(placements.filter(Boolean));
+    Object.entries(tiles).forEach(([word, t]) => {
+      const away = used.has(word);
+      t.classList.toggle("placed-away", away);
+      t.disabled = away;
+      t.parentElement.hidden = false;
+      const isSel = selected && selected.from === "bank" && selected.word === word;
+      t.classList.toggle("selected", !!isSel);
+      t.setAttribute("aria-pressed", isSel ? "true" : "false");
+    });
+    zones.forEach((z, i) => {
+      const word = placements[i];
+      z.classList.toggle("filled", !!word && !locked[i]);
+      z.classList.toggle("correct", locked[i]);
+      z.classList.toggle("incorrect", wrongMark[i] && !word);
+      z.classList.toggle("target-ready", !!selected && !locked[i]);
+      z.disabled = locked[i];
+      z.parentElement.classList.toggle("is-correct", locked[i]);
+      if (locked[i]) {
+        z.innerHTML = '<span class="mark" aria-hidden="true">✓</span>' + word;
+        z.setAttribute("aria-label", `Blank ${i + 1}: ${word}, correct`);
+      } else if (word) {
+        z.textContent = word;
+        z.setAttribute("aria-label", `Blank ${i + 1}: ${word}. Select to return it to the bank${selected ? " or replace it with " + selected.word : ""}.`);
+      } else if (wrongMark[i]) {
+        z.innerHTML = '<span class="mark" aria-hidden="true">✗</span>try again';
+        z.setAttribute("aria-label", `Blank ${i + 1}: empty, previous word was incorrect${selected ? ". Select to place " + selected.word : ""}`);
+      } else {
+        z.textContent = "________";
+        z.setAttribute("aria-label", `Blank ${i + 1}: empty${selected ? ". Select to place " + selected.word : ""}`);
+      }
+    });
+    const correct = locked.filter(Boolean).length;
+    pill.textContent = `${correct}/${TOTAL} correct`;
+    bar.setAttribute("aria-valuenow", String(correct));
+    fill.style.width = `${Math.round((correct / TOTAL) * 100)}%`;
+    checkBtn.disabled = completed;
+  }
+
+  function place(word, from, zoneIndex) {
+    if (locked[zoneIndex]) return;
+    if (typeof from === "number") placements[from] = null;
+    placements[zoneIndex] = word; // any previous occupant simply returns to the bank
+    wrongMark[zoneIndex] = false;
+    selected = null;
+    render();
+    announce(`${word} placed in blank ${zoneIndex + 1}.`);
+  }
+  function returnToBank(zoneIndex) {
+    const word = placements[zoneIndex];
+    if (!word || locked[zoneIndex]) return;
+    placements[zoneIndex] = null;
+    selected = null;
+    render();
+    announce(`${word} returned to the word bank.`);
+    tiles[word].focus();
+  }
+
+  // Click / keyboard path
+  let suppressClick = false;
+  bankEl.addEventListener("click", (e) => {
+    if (suppressClick) { suppressClick = false; return; }
+    const t = e.target.closest(".word-tile");
+    if (!t || t.disabled) return;
+    const word = t.dataset.word;
+    if (selected && selected.from === "bank" && selected.word === word) {
+      selected = null; render(); announce(`${word} deselected.`); return;
+    }
+    selected = { word, from: "bank" };
+    render();
+    announce(`${word} selected. Now select a blank to place it.`);
+  });
+  listEl.addEventListener("click", (e) => {
+    if (suppressClick) { suppressClick = false; return; }
+    const z = e.target.closest(".drop-zone");
+    if (!z || z.disabled) return;
+    const i = Number(z.dataset.index);
+    if (selected) { place(selected.word, selected.from, i); return; }
+    if (placements[i]) returnToBank(i);
+  });
+
+  // Pointer drag path
+  let drag = null;
+  const THRESHOLD = 8;
+  function startSource(e) {
+    const t = e.target.closest(".word-tile");
+    if (t && !t.disabled) return { word: t.dataset.word, from: "bank", el: t };
+    const z = e.target.closest(".drop-zone");
+    if (z && !z.disabled) {
+      const i = Number(z.dataset.index);
+      if (placements[i]) return { word: placements[i], from: i, el: z };
+    }
+    return null;
+  }
+  document.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || completed) return;
+    const src = startSource(e);
+    if (!src) return;
+    drag = { ...src, x: e.clientX, y: e.clientY, id: e.pointerId, active: false, ghost: null, hover: null };
+  });
+  function getDropTarget(x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+    const z = el.closest(".drop-zone");
+    if (z && !z.disabled) return z;
+    const b = el.closest(".word-panel");
+    if (b) return bankEl;
+    return null;
+  }
+  document.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.active) {
+      if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < THRESHOLD) return;
+      drag.active = true;
+      try { drag.el.setPointerCapture(e.pointerId); } catch (err) {}
+      const g = document.createElement("div");
+      g.className = "word-tile drag-ghost";
+      g.setAttribute("aria-hidden", "true");
+      g.textContent = drag.word;
+      g.style.setProperty("--drag-width", Math.max(drag.el.getBoundingClientRect().width, 110) + "px");
+      g.style.display = "flex"; g.style.alignItems = "center"; g.style.justifyContent = "center";
+      document.body.appendChild(g);
+      drag.ghost = g;
+    }
+    e.preventDefault();
+    drag.ghost.style.left = e.clientX + "px";
+    drag.ghost.style.top = e.clientY + "px";
+    const target = getDropTarget(e.clientX, e.clientY);
+    if (drag.hover && drag.hover !== target) drag.hover.classList.remove("drop-hover");
+    if (target) target.classList.add("drop-hover");
+    drag.hover = target;
+  });
+  function endDrag(e, cancelled) {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag; drag = null;
+    if (!d.active) return; // below threshold → let click handle it
+    suppressClick = true;
+    setTimeout(() => { suppressClick = false; }, 0);
+    if (d.hover) d.hover.classList.remove("drop-hover");
+    d.ghost.remove();
+    if (cancelled) return;
+    const target = getDropTarget(e.clientX, e.clientY);
+    if (target && target.classList.contains("drop-zone")) {
+      place(d.word, d.from, Number(target.dataset.index));
+    } else if (target === bankEl && typeof d.from === "number") {
+      returnToBank(d.from);
+    }
+  }
+  document.addEventListener("pointerup", (e) => endDrag(e, false));
+  document.addEventListener("pointercancel", (e) => endDrag(e, true));
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && selected) { selected = null; render(); announce("Selection cleared."); }
+  });
+
+  // Check
+  checkBtn.addEventListener("click", () => {
+    selected = null;
+    let right = 0, wrong = 0, empty = 0;
+    ITEMS.forEach((item, i) => {
+      if (locked[i]) { right++; return; }
+      const w = placements[i];
+      if (!w) { empty++; return; }
+      const ok = w === item.answer;
+      if (firstResult[i] === null) firstResult[i] = ok;
+      if (ok) { locked[i] = true; right++; }
+      else { placements[i] = null; wrongMark[i] = true; wrong++; }
+    });
+    render();
+    if (right === TOTAL) { complete(); return; }
+    const parts = [`${right} of ${TOTAL} correct.`];
+    if (wrong) parts.push(`${wrong} incorrect ${wrong === 1 ? "word was" : "words were"} returned to the bank.`);
+    if (empty) parts.push(`${empty} ${empty === 1 ? "blank is" : "blanks are"} still empty.`);
+    parts.push("Correct answers are locked in.");
+    setStatus(parts.join(" "), wrong ? "error" : null);
+    announce(parts.join(" "));
+  });
+
+  function complete() {
+    completed = true;
+    render();
+    const firstRight = ITEMS.map((it, i) => i).filter((i) => firstResult[i] === true);
+    const retried = ITEMS.map((it, i) => i).filter((i) => firstResult[i] === false);
+    firstScore = Math.round((firstRight.length / TOTAL) * 100);
+    const headline = retried.length === 0
+      ? `All ${TOTAL} blanks were correct on the first try.`
+      : `You completed all ${TOTAL} sentences. ${firstRight.length} of ${TOTAL} were correct on the first try; ${retried.length} took another pass.`;
+    document.getElementById("summary-headline").textContent = headline;
+    const cols = document.getElementById("summary-cols");
+    cols.innerHTML = "";
+    const mk = (title, idxs) => {
+      const p = document.createElement("div");
+      const strong = document.createElement("strong");
+      strong.textContent = title + ": ";
+      const ul = document.createElement("ul");
+      idxs.forEach((i) => { const li = document.createElement("li"); li.textContent = `sentence ${i + 1} (${ITEMS[i].answer})`; ul.appendChild(li); });
+      p.append(strong, ul);
+      cols.appendChild(p);
+    };
+    mk("Right on the first try", firstRight);
+    if (retried.length) mk("Worth revisiting", retried);
+    summary.hidden = false;
+    document.getElementById("word-panel").hidden = true;
+    setStatus("All sentences are complete.", "success");
+    SCORM.setScore(firstScore);
+    finishBtn.disabled = false;
+    finishBtn.setAttribute("aria-disabled", "false");
+    finishBtn.classList.add("ready");
+    announce(`${headline} Activity complete — the Finish button is now available.`);
+  }
+
+  resetBtn.addEventListener("click", () => {
+    ITEMS.forEach((it, i) => { if (!locked[i]) { placements[i] = null; wrongMark[i] = false; } });
+    selected = null;
+    render();
+    setStatus(completed ? "All sentences are complete." : "Unlocked blanks cleared. Place a word in each blank, then select Check.", completed ? "success" : null);
+    announce("Unlocked words returned to the bank.");
+  });
+
+  finishBtn.addEventListener("click", () => {
+    if (!completed) return;
+    SCORM.finishActivity(firstScore == null ? 100 : firstScore);
+    finishBtn.textContent = "✓ Completed — you may close this window";
+    finishBtn.disabled = true;
+    finishBtn.setAttribute("aria-disabled", "true");
+    finishBtn.classList.remove("ready");
+    announce("Completion recorded. You may close this window.");
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

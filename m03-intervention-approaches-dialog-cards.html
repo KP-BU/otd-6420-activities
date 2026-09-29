@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta name="robots" content="noindex">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Name that approach</title>
+<style>
+  :root {
+    --green: #154734;
+    --gold: #FFB81C;
+    --ink: #12352a;
+    --muted: #5f7068;
+    --soft-green: #e7f1ed;
+    --soft-gold: #fff4d8;
+    --line: #cfddd7;
+    --danger: #b42318; --danger-soft: #ffe5e2;
+    --success: #1f7a46; --success-soft: #e2f5e8;
+    --shadow: 0 22px 60px rgba(21, 71, 52, 0.16);
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-family: "Proxima Nova", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    line-height: 1.5;
+    background:
+      radial-gradient(circle at top left, rgba(255,184,28,0.28), transparent 30rem),
+      linear-gradient(135deg, #f7fbf8 0%, #eef7f3 100%);
+    overflow-x: hidden;
+  }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  main {
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: safe center;
+    width: min(100%, 46rem);
+    margin: 0 auto;
+    padding: clamp(0.9rem, 3vw, 1.75rem) clamp(0.75rem, 3vw, 1.5rem);
+    gap: 1rem;
+  }
+  .panel {
+    background: rgba(255,255,255,0.94);
+    border: 2px solid rgba(21,71,52,0.1);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: clamp(1rem, 3vw, 1.5rem);
+  }
+  header.intro { border-top: 6px solid var(--green); }
+  .kicker {
+    margin: 0 0 0.25rem; font-size: 0.85rem; font-weight: 800;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  }
+  h1 { margin: 0 0 0.5rem; color: var(--green); font-size: clamp(1.6rem, 4.5vw, 2.2rem); line-height: 1.15; }
+  .instructions { margin: 0; font-size: 1.02rem; }
+
+  .legend h2 { margin: 0 0 0.5rem; font-size: 1rem; color: var(--green); }
+  .legend ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .legend li {
+    padding: 0.35rem 0.85rem; border-radius: 999px;
+    background: var(--soft-green); border: 2px solid var(--line);
+    color: var(--green); font-weight: 800; font-size: 0.95rem;
+  }
+
+  .progress-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.9rem; }
+  .pill {
+    background: var(--soft-green); color: var(--green);
+    border: 2px solid var(--line); border-radius: 999px;
+    padding: 0.2rem 0.8rem; font-weight: 800; font-size: 0.95rem; white-space: nowrap;
+  }
+  .progress-track {
+    flex: 1 1 10rem; min-width: 8rem; height: 0.7rem;
+    background: var(--soft-green); border-radius: 999px; overflow: hidden; border: 1px solid var(--line);
+  }
+  .progress-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--green), #2d7a5a 60%, var(--gold));
+    transition: width 320ms ease;
+  }
+
+  /* Flip card */
+  .flashcard { perspective: 1400px; }
+  .flashcard[hidden] { display: none; }
+  .flashcard-inner {
+    position: relative;
+    min-height: 16rem;
+    transform-style: preserve-3d;
+    transition: transform 280ms ease, height 240ms ease;
+  }
+  .flashcard.is-flipped .flashcard-inner { transform: rotateY(180deg); }
+  .face {
+    position: absolute; inset: 0 0 auto 0;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    background: #fff;
+    border: 2px solid rgba(21,71,52,0.14);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: clamp(1rem, 3vw, 1.75rem);
+    display: flex; flex-direction: column; gap: 0.9rem;
+    cursor: pointer;
+  }
+  .face.front { border-top: 6px solid var(--gold); }
+  .face.back { transform: rotateY(180deg); border-top: 6px solid var(--green); background: #fbfdfc; }
+  .face-label {
+    display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;
+    margin: 0; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  }
+  .question { margin: 0; font-weight: 700; color: var(--green); }
+  .scenario { margin: 0; font-size: clamp(1.1rem, 2.6vw, 1.3rem); line-height: 1.55; }
+  .answer-name { margin: 0; font-size: clamp(1.3rem, 3vw, 1.6rem); font-weight: 900; color: var(--green); line-height: 1.25; }
+  .answer-text { margin: 0; font-size: 1.05rem; }
+  .recap { margin: 0; padding: 0.6rem 0.8rem; border-left: 4px solid var(--line); background: var(--soft-green); border-radius: 0 8px 8px 0; font-size: 0.95rem; color: var(--ink); }
+  .actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: auto; }
+  .btn {
+    min-height: 3rem; padding: 0.5rem 1.2rem; border-radius: 8px; border: 2px solid var(--green);
+    font: inherit; font-weight: 800; cursor: pointer; background: #fff; color: var(--green);
+  }
+  .btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .btn-turn { background: var(--green); color: #fff; }
+  .btn-turn:hover, .btn-turn:focus-visible { background: #0e3325; }
+  .btn-turn-back:hover, .btn-turn-back:focus-visible { background: var(--soft-green); }
+  .btn-missed { border-color: var(--danger); color: var(--danger); }
+  .btn-missed:hover, .btn-missed:focus-visible { background: var(--danger-soft); }
+  .btn-right { border-color: var(--success); color: #145a33; background: var(--success-soft); }
+  .btn-right:hover, .btn-right:focus-visible { background: #c9ecd5; }
+  .spacer { flex: 1 1 auto; }
+
+  .summary { border-top: 6px solid var(--gold); }
+  .summary[hidden] { display: none; }
+  .summary h2 { margin: 0 0 0.4rem; color: var(--green); font-size: 1.3rem; }
+  .summary p { margin: 0 0 0.5rem; }
+  .summary h3 { margin: 0.5rem 0 0.25rem; font-size: 1rem; color: var(--green); }
+  .summary ul { margin: 0 0 0.5rem; padding-left: 1.25rem; }
+  .summary-cols { display: grid; gap: 0.25rem 1.5rem; }
+
+  .footnote { margin: 0; font-size: 0.9rem; color: var(--muted); text-align: center; }
+
+  .finish-bar {
+    position: sticky; bottom: 0; z-index: 30;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    background: rgba(247, 251, 248, 0.92);
+    backdrop-filter: blur(6px);
+    border-top: 2px solid var(--line);
+  }
+  .finish-button {
+    display: block; width: min(100%, 22rem); margin: 0 auto; min-height: 3rem;
+    border: 2px solid var(--gold); border-radius: 8px;
+    background: var(--gold); color: var(--green);
+    font: inherit; font-weight: 900; font-size: 1.05rem; cursor: pointer;
+    transition: background 160ms ease, color 160ms ease, opacity 160ms ease;
+  }
+  .finish-button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .finish-button:not(:disabled):hover,
+  .finish-button:not(:disabled):focus-visible {
+    background: var(--green); border-color: var(--green); color: #ffffff; outline: none;
+  }
+  .finish-button.ready { animation: pulse 1.6s ease 2; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(255,184,28,0.35); } }
+
+  @media (max-width: 540px) {
+    .actions .btn { flex: 1 1 calc(50% - 0.3rem); }
+    .actions .btn-turn, .actions .btn-turn-back { flex-basis: 100%; }
+    .actions .spacer { display: none; }
+  }
+  @media (min-width: 700px) and (max-width: 1099px) {
+    main { width: min(100%, 62rem); padding-left: 1rem; padding-right: 1rem; }
+  }
+  @media (min-width: 1100px) and (min-height: 900px) {
+    main { width: min(100%, 1100px); padding: 1.25rem 1.5rem; }
+    .summary-cols { grid-template-columns: 1fr 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<main id="main">
+  <header class="panel intro">
+    <p class="kicker">OTD 6420 · Module 3</p>
+    <h1>Name that approach</h1>
+    <p class="instructions">Read each scenario and decide which OTPF-4 intervention approach the OT is using. Flip the card to check, then mark whether you got it right.</p>
+    <div class="progress-row">
+      <span class="pill" id="card-count">Card 1 of 7</span>
+      <span class="pill" id="mastered-count">0 of 7 mastered</span>
+      <div class="progress-track" role="progressbar" id="progressbar" aria-label="Cards mastered" aria-valuemin="0" aria-valuemax="7" aria-valuenow="0">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="panel legend" aria-labelledby="legend-heading">
+    <h2 id="legend-heading">The five OTPF-4 intervention approaches</h2>
+    <ul>
+      <li>Create/promote</li>
+      <li>Establish/restore</li>
+      <li>Maintain</li>
+      <li>Modify</li>
+      <li>Prevent</li>
+    </ul>
+  </section>
+
+  <section class="flashcard" id="flashcard" aria-label="Scenario card">
+    <div class="flashcard-inner" id="card-inner">
+      <div class="face front" id="face-front">
+        <p class="face-label"><span>Scenario</span><span id="front-pos"></span></p>
+        <p class="question">Which approach is the OT using?</p>
+        <p class="scenario" id="scenario"></p>
+        <div class="actions">
+          <button type="button" class="btn btn-turn" id="turn-button">Turn card</button>
+        </div>
+      </div>
+      <div class="face back" id="face-back">
+        <p class="face-label"><span>Answer</span><span id="back-pos"></span></p>
+        <p class="answer-name" id="answer-name"></p>
+        <p class="answer-text" id="answer-text"></p>
+        <p class="recap" id="recap"></p>
+        <div class="actions">
+          <button type="button" class="btn btn-turn-back" id="turn-back-button">Turn back</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn btn-missed" data-result="missed"><span aria-hidden="true">&#10007; </span>I missed it</button>
+          <button type="button" class="btn btn-right" data-result="right"><span aria-hidden="true">&#10003; </span>I got it right</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel summary" id="summary" hidden tabindex="-1" aria-labelledby="summary-heading">
+    <h2 id="summary-heading">Deck complete</h2>
+    <p id="summary-headline"></p>
+    <div class="summary-cols" id="summary-cols"></div>
+  </section>
+
+  <p class="footnote">Approaches from the Occupational Therapy Practice Framework (4th ed.). Pairs with the Module 3 video, Introduction to Remediation and Compensatory Interventions.</p>
+</main>
+
+<footer class="finish-bar">
+  <button type="button" id="finish-button" class="finish-button" disabled aria-disabled="true">Finish</button>
+</footer>
+<p class="sr-only" id="live" aria-live="polite"></p>
+
+<script>
+  const SCORM = (() => {
+    let api = null, initialized = false, finished = false;
+
+    function findApi(win) {
+      let current = win, attempts = 0;
+      try {
+        while (current && !current.API && current.parent && current.parent !== current && attempts < 500) {
+          attempts += 1; current = current.parent;
+        }
+        if (current && current.API) return current.API;
+        if (win.opener && !win.opener.closed) return findApi(win.opener);
+      } catch (e) { return null; }
+      return null;
+    }
+
+    function call(method, ...args) {
+      if (!api || typeof api[method] !== "function") return "false";
+      try { return api[method](...args); } catch (e) { return "false"; }
+    }
+
+    function init() {
+      if (initialized) return true;
+      api = findApi(window);
+      if (!api) return false;
+      initialized = call("LMSInitialize", "") === "true";
+      if (initialized) {
+        const prior = call("LMSGetValue", "cmi.core.lesson_status");
+        if (prior !== "completed" && prior !== "passed") {
+          call("LMSSetValue", "cmi.core.lesson_status", "incomplete");
+        }
+        call("LMSCommit", "");
+      }
+      return initialized;
+    }
+
+    function setScore(raw) {
+      if (!initialized) return;
+      call("LMSSetValue", "cmi.core.score.raw", String(raw));
+      call("LMSCommit", "");
+    }
+
+    function finishActivity(score = 100) {
+      if (finished) return;
+      if (initialized) {
+        call("LMSSetValue", "cmi.core.lesson_status", "completed");
+        call("LMSSetValue", "cmi.core.score.raw", String(score));
+        call("LMSCommit", "");
+        call("LMSFinish", "");
+      }
+      finished = true;
+    }
+
+    function unloadSafety() {
+      if (finished || !initialized) return;
+      call("LMSCommit", "");
+      call("LMSFinish", "");
+      finished = true;
+    }
+
+    window.addEventListener("pagehide", unloadSafety);
+    window.addEventListener("beforeunload", unloadSafety);
+
+    return { init, setScore, finishActivity };
+  })();
+
+  SCORM.init();
+</script>
+<script>
+(() => {
+  const CARDS = [
+    { front: "An OT runs a stress-management and sleep-hygiene workshop for everyone living in a supportive housing program, whether or not they have symptoms.",
+      name: "Create / promote (health promotion)",
+      text: "The approach enriches everyday experiences for everyone and does not assume a disability is present." },
+    { front: "The OT uses graded cooking tasks to rebuild Marcus's ability to plan and sequence a meal after cognitive changes linked to psychosis.",
+      name: "Establish / restore (remediation)",
+      text: "The goal is to change the client's own skills: restore an impaired ability or build one not yet developed." },
+    { front: "The OT sets up a pill organizer and phone alarms so Lena can take her medication on time despite ongoing memory problems.",
+      name: "Modify (compensation / adaptation)",
+      text: "The OT changes the activity or the context to support performance instead of changing the person." },
+    { front: "After discharge, a client keeps attending a weekly clubhouse work unit so the routines he rebuilt in the hospital don't fade.",
+      name: "Maintain",
+      text: "The approach preserves performance capabilities the client has regained." },
+    { front: "The OT teaches a group of college students with anxiety to spot early warning signs and use a coping plan before exam stress escalates.",
+      name: "Prevent (disability prevention)",
+      text: "It targets people at risk, with or without a diagnosis, to keep occupational barriers from developing." },
+    { front: "For a supported-employment client, the OT turns a long job task list into a picture checklist.",
+      name: "Modify (compensation / adaptation)",
+      text: "The task demands are adapted; the client's underlying skill is not the target." },
+    { front: "The OT uses role-play and feedback so a client can practice starting conversations at the drop-in center.",
+      name: "Establish / restore (remediation)",
+      text: "Social skills training builds the client's own communication skills." }
+  ];
+  const TOTAL = CARDS.length;
+
+  const card = document.getElementById("flashcard");
+  const inner = document.getElementById("card-inner");
+  const front = document.getElementById("face-front");
+  const back = document.getElementById("face-back");
+  const turnBtn = document.getElementById("turn-button");
+  const turnBackBtn = document.getElementById("turn-back-button");
+  const liveEl = document.getElementById("live");
+  const finishBtn = document.getElementById("finish-button");
+  const summary = document.getElementById("summary");
+
+  let queue = CARDS.map((c, i) => i);
+  const mastered = new Array(TOTAL).fill(false);
+  const firstTry = new Array(TOTAL).fill(null);
+  const misses = new Array(TOTAL).fill(0);
+  let flipped = false;
+  let finished = false;
+  let firstScore = null;
+
+  function announce(msg) { liveEl.textContent = ""; setTimeout(() => { liveEl.textContent = msg; }, 30); }
+
+  function sizeCard() {
+    const face = flipped ? back : front;
+    inner.style.minHeight = "0px";
+    const h = face.scrollHeight + 4;
+    inner.style.minHeight = "";
+    inner.style.height = h + "px";
+  }
+
+  function setFlipState(isFlipped) {
+    flipped = isFlipped;
+    card.classList.toggle("is-flipped", flipped);
+    const shown = flipped ? back : front;
+    const hidden = flipped ? front : back;
+    shown.removeAttribute("aria-hidden"); shown.inert = false;
+    hidden.setAttribute("aria-hidden", "true"); hidden.inert = true;
+    shown.querySelectorAll("button").forEach((b) => { b.tabIndex = 0; });
+    hidden.querySelectorAll("button").forEach((b) => { b.tabIndex = -1; });
+    sizeCard();
+  }
+
+  function updateProgress() {
+    const n = mastered.filter(Boolean).length;
+    document.getElementById("mastered-count").textContent = `${n} of ${TOTAL} mastered`;
+    const bar = document.getElementById("progressbar");
+    bar.setAttribute("aria-valuenow", String(n));
+    document.getElementById("progress-fill").style.width = `${Math.round((n / TOTAL) * 100)}%`;
+  }
+
+  function renderCard() {
+    const idx = queue[0];
+    const c = CARDS[idx];
+    const label = misses[idx] ? `Card ${idx + 1} of ${TOTAL} · second look` : `Card ${idx + 1} of ${TOTAL}`;
+    document.getElementById("card-count").textContent = `Card ${idx + 1} of ${TOTAL}`;
+    document.getElementById("front-pos").textContent = label;
+    document.getElementById("back-pos").textContent = label;
+    document.getElementById("scenario").textContent = c.front;
+    document.getElementById("answer-name").textContent = c.name;
+    document.getElementById("answer-text").textContent = c.text;
+    document.getElementById("recap").textContent = "Scenario: " + c.front;
+    setFlipState(false);
+    updateProgress();
+  }
+
+  function flip(focusTarget) {
+    if (finished) return;
+    setFlipState(!flipped);
+    const idx = queue[0];
+    if (flipped) {
+      announce(`Answer: ${CARDS[idx].name}. ${CARDS[idx].text} Did you get it right?`);
+      (focusTarget || back.querySelector(".btn-right")).focus({ preventScroll: true });
+    } else {
+      announce(`Scenario ${idx + 1}: ${CARDS[idx].front}`);
+      turnBtn.focus({ preventScroll: true });
+    }
+  }
+
+  turnBtn.addEventListener("click", (e) => { e.stopPropagation(); flip(back.querySelector(".btn-right")); });
+  turnBackBtn.addEventListener("click", (e) => { e.stopPropagation(); flip(); });
+  [front, back].forEach((face) => face.addEventListener("click", (e) => {
+    if (e.target.closest("button")) return;
+    if (window.getSelection && String(window.getSelection())) return;
+    flip();
+  }));
+
+  document.querySelectorAll("[data-result]").forEach((b) => b.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (finished || !flipped) return;
+    const idx = queue.shift();
+    const right = b.dataset.result === "right";
+    if (firstTry[idx] === null) firstTry[idx] = right;
+    if (right) {
+      mastered[idx] = true;
+    } else {
+      misses[idx] += 1;
+      queue.push(idx);
+    }
+    if (queue.length === 0) { complete(); return; }
+    renderCard();
+    const n = mastered.filter(Boolean).length;
+    announce(`${right ? "Marked right." : "Marked missed; this card will come back later."} ${n} of ${TOTAL} mastered. Next: card ${queue[0] + 1}. ${CARDS[queue[0]].front}`);
+    turnBtn.focus({ preventScroll: true });
+  }));
+
+  function complete() {
+    finished = true;
+    updateProgress();
+    // move focus out of the card before hiding it
+    summary.hidden = false;
+    summary.focus();
+    card.hidden = true;
+    document.getElementById("card-count").textContent = "Deck complete";
+    const firstRight = CARDS.map((c, i) => i).filter((i) => firstTry[i] === true);
+    const retried = CARDS.map((c, i) => i).filter((i) => firstTry[i] === false);
+    firstScore = Math.round((firstRight.length / TOTAL) * 100);
+    const headline = retried.length === 0
+      ? `You named all ${TOTAL} approaches correctly on the first try.`
+      : `You worked through all ${TOTAL} cards. ${firstRight.length} of ${TOTAL} were right on the first try; ${retried.length} took another pass.`;
+    document.getElementById("summary-headline").textContent = headline;
+    const cols = document.getElementById("summary-cols");
+    cols.innerHTML = "";
+    const mk = (title, idxs) => {
+      const div = document.createElement("div");
+      const h = document.createElement("h3");
+      h.textContent = title;
+      const ul = document.createElement("ul");
+      idxs.forEach((i) => {
+        const li = document.createElement("li");
+        li.textContent = `Card ${i + 1}: ${CARDS[i].name}`;
+        ul.appendChild(li);
+      });
+      div.append(h, ul);
+      cols.appendChild(div);
+    };
+    mk("Right on the first try", firstRight);
+    if (retried.length) mk("Worth revisiting", retried);
+    SCORM.setScore(firstScore);
+    finishBtn.disabled = false;
+    finishBtn.setAttribute("aria-disabled", "false");
+    finishBtn.classList.add("ready");
+    announce(`${headline} Activity complete — the Finish button is now available.`);
+  }
+
+  finishBtn.addEventListener("click", () => {
+    if (!finished) return;
+    SCORM.finishActivity(firstScore == null ? 100 : firstScore);
+    finishBtn.textContent = "✓ Completed — you may close this window";
+    finishBtn.disabled = true;
+    finishBtn.setAttribute("aria-disabled", "true");
+    finishBtn.classList.remove("ready");
+    announce("Completion recorded. You may close this window.");
+  });
+
+  window.addEventListener("resize", () => { if (!finished) sizeCard(); });
+  renderCard();
+})();
+</script>
+</body>
+</html>
