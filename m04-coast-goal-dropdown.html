@@ -169,7 +169,7 @@
       <button type="button" class="btn btn-secondary" id="reset-btn">Reset</button>
     </div>
     <div class="feedback" id="feedback" role="status" aria-live="polite"></div>
-    <p class="note">COAST goal format (Gateley &amp; Borcherding). Ray and Lucy are the course’s simulated clients.</p>
+    <p class="note">COAST goal format (Gateley &amp; Borcherding). Andre and Lucy are practice clients for this activity.</p>
   </section>
 </main>
 </div>
@@ -241,7 +241,7 @@
   const LABELS = ["Client", "Occupation", "Assist level", "Specific condition", "Timeline"];
   const GOALS = [
     { name: "Goal 1", segs: [
-      ["Ray", "Client"],
+      ["Andre", "Client"],
       ["will prepare a simple cold lunch", "Occupation"],
       ["with minimal verbal cues", "Assist level"],
       ["using a picture-based recipe card", "Specific condition"],
@@ -251,13 +251,13 @@
       ["Within 2 weeks,", "Timeline"],
       ["Lucy", "Client"],
       ["will complete her morning self-care routine", "Occupation"],
-      ["with modified independence", "Assist level"],
+      ["independently", "Assist level"],
       ["following a written checklist posted by her mirror.", "Specific condition"]
     ]}
   ];
   // Part 2: first option listed is correct; display order is shuffled.
   const P2 = [
-    { before: "Ray will ", after: " ", opts: ["take his medication as prescribed", "understand his medications better", "feel more confident about medications"] },
+    { before: "Andre will ", after: " ", opts: ["take his medication as prescribed", "understand his medications better", "feel more confident about medications"] },
     { before: "with ", after: " ", opts: ["supervision for safety", "some help", "good effort"] },
     { before: "using ", after: " ", opts: ["a weekly pill organizer and phone alarm", "better habits", "his best judgment"] },
     { before: "by ", after: ".", opts: ["discharge in 2 weeks", "eventually", "the end of therapy, if possible"] }
